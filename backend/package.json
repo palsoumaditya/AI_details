@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./database": "./src/database/index.ts",
+    "./services": "./src/services/index.ts",
     "./shared": "./src/shared/index.ts",
     "./integrations/openrouter": "./src/integrations/openrouter/index.ts",
     "./integrations/modelsdev": "./src/integrations/modelsdev/index.ts",
@@ -26,6 +27,7 @@
     "sync:modelsdev": "tsx scripts/sync-modelsdev.ts",
     "sync:all": "tsx scripts/sync-all-sources.ts",
     "test:openrouter": "tsx scripts/test-openrouter.ts",
+    "test:api": "tsx scripts/test-api-foundation.ts",
     "test:modelsdev": "tsx scripts/test-modelsdev.ts",
     "test:resolution": "tsx scripts/test-identity-resolution.ts",
     "test:coordinator": "tsx scripts/test-ingestion-coordinator.ts",

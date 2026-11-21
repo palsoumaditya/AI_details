@@ -24,6 +24,7 @@
     "sync:modelsdev": "npm run sync:modelsdev -w @oneatlas/backend",
     "sync:all": "npm run sync:all -w @oneatlas/backend",
     "test:openrouter": "npm run test:openrouter -w @oneatlas/backend",
+    "test:api": "npm run test:api -w @oneatlas/backend",
     "test:modelsdev": "npm run test:modelsdev -w @oneatlas/backend",
     "test:resolution": "npm run test:resolution -w @oneatlas/backend",
     "test:coordinator": "npm run test:coordinator -w @oneatlas/backend",

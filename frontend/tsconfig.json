@@ -20,7 +20,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@oneatlas/backend": ["../backend/src/index.ts"],
+      "@oneatlas/backend/*": ["../backend/src/*"]
     }
   },
   "include": [
