@@ -19,16 +19,16 @@ import {
 import type { ILabsQueryService } from "./contracts/index";
 
 /**
- * AI Lab Directory Query Service (Phase 4D)
+ * AI Lab Directory Query Service (Phase 4D.1 Hardened)
  *
  * Implements research organization discovery, verified foundation model lineages,
- * role-specific association counts, and model family distributions.
+ * role-specific association counts, and model family distributions — strictly aggregated in PostgreSQL.
  */
 export class LabDirectoryQueryService implements ILabsQueryService {
   constructor(private readonly db: PrismaClient = prisma) {}
 
   /**
-   * Retrieve paginated directory of registered AI research labs
+   * Retrieve paginated directory of registered AI research labs with PostgreSQL-level aggregations
    */
   async listLabs(inputParams?: LabsInputQuery): Promise<AiLabDirectoryResult> {
     const query: LabsQuery = LabsQuerySchema.parse(inputParams ?? {});
@@ -37,104 +37,94 @@ export class LabDirectoryQueryService implements ILabsQueryService {
     const limit = query.limit;
     const skip = (page - 1) * limit;
 
-    // 1. Build relational WHERE filter
-    const where: Prisma.AiLabWhereInput = {};
+    // 1. Build relational parameterized WHERE filters
+    const conditions: Prisma.Sql[] = [];
 
     if (query.q) {
-      where.OR = [
-        { name: { contains: query.q, mode: "insensitive" } },
-        { slug: { contains: query.q, mode: "insensitive" } },
-      ];
+      const searchPattern = `%${query.q}%`;
+      conditions.push(Prisma.sql`(l."name" ILIKE ${searchPattern} OR l."slug" ILIKE ${searchPattern})`);
     }
 
     if (query.country) {
-      where.country = { equals: query.country, mode: "insensitive" };
+      conditions.push(Prisma.sql`l."country" ILIKE ${query.country}`);
     }
 
-    // 2. Build deterministic sorting
-    let orderBy: Prisma.AiLabOrderByWithRelationInput[];
+    const whereClause = conditions.length > 0
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+      : Prisma.empty;
+
+    // 2. Build deterministic sorting in PostgreSQL
+    let orderByClause: Prisma.Sql;
     switch (query.sort) {
       case "name_desc":
-        orderBy = [{ name: "desc" }, { id: "desc" }];
+        orderByClause = Prisma.sql`ORDER BY l."name" DESC, l."id" DESC`;
         break;
       case "models_desc":
-        orderBy = [{ models: { _count: "desc" } }, { name: "asc" }, { id: "desc" }];
+        orderByClause = Prisma.sql`ORDER BY COUNT(DISTINCT ml."modelId") DESC, l."name" ASC, l."id" DESC`;
         break;
       case "name_asc":
       default:
-        orderBy = [{ name: "asc" }, { id: "desc" }];
+        orderByClause = Prisma.sql`ORDER BY l."name" ASC, l."id" DESC`;
         break;
     }
 
-    // 3. Execute total count and paginated labs query in parallel
-    const [totalItems, labs] = await Promise.all([
-      this.db.aiLab.count({ where }),
-      this.db.aiLab.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy,
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          description: true,
-          website: true,
-          logoUrl: true,
-          country: true,
-        },
-      }),
+    // 3. Execute total count and paginated labs aggregation in parallel in PostgreSQL
+    const [countRows, labRows] = await Promise.all([
+      this.db.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT count(*)::int AS count
+        FROM "ai_labs" l
+        ${whereClause}
+      `),
+      this.db.$queryRaw<Array<{
+        id: string;
+        slug: string;
+        name: string;
+        description: string | null;
+        website: string | null;
+        logoUrl: string | null;
+        country: string | null;
+        modelCount: number;
+        creatorModelCount: number;
+        publisherModelCount: number;
+        collaboratorModelCount: number;
+      }>>(Prisma.sql`
+        SELECT 
+          l."id",
+          l."slug",
+          l."name",
+          l."description",
+          l."website",
+          l."logoUrl",
+          l."country",
+          COUNT(DISTINCT ml."modelId")::int AS "modelCount",
+          COUNT(DISTINCT CASE WHEN ml."relationshipType" = 'CREATOR' THEN ml."modelId" END)::int AS "creatorModelCount",
+          COUNT(DISTINCT CASE WHEN ml."relationshipType" = 'PUBLISHER' THEN ml."modelId" END)::int AS "publisherModelCount",
+          COUNT(DISTINCT CASE WHEN ml."relationshipType" = 'COLLABORATOR' THEN ml."modelId" END)::int AS "collaboratorModelCount"
+        FROM "ai_labs" l
+        LEFT JOIN "model_labs" ml ON l."id" = ml."aiLabId"
+        ${whereClause}
+        GROUP BY l."id"
+        ${orderByClause}
+        LIMIT ${limit} OFFSET ${skip}
+      `),
     ]);
 
-    // 4. Batch fetch model_labs associations for current page to prevent N+1
-    const labIds = labs.map((l) => l.id);
-    const linkRows =
-      labIds.length > 0
-        ? await this.db.modelLab.findMany({
-            where: { aiLabId: { in: labIds } },
-            select: {
-              aiLabId: true,
-              modelId: true,
-              relationshipType: true,
-            },
-          })
-        : [];
+    const totalItems = countRows[0]?.count ?? 0;
 
-    const linksByLab = new Map<string, typeof linkRows>();
-    for (const link of linkRows) {
-      const list = linksByLab.get(link.aiLabId) ?? [];
-      list.push(link);
-      linksByLab.set(link.aiLabId, list);
-    }
-
-    // 5. Transform into DTOs with verified distinct aggregates
-    const items: AiLabDirectoryItemDto[] = labs.map((l) => {
-      const links = linksByLab.get(l.id) ?? [];
-      const distinctModelIds = new Set(links.map((link) => link.modelId));
-      const creatorModelIds = new Set(
-        links.filter((link) => link.relationshipType === "CREATOR").map((link) => link.modelId)
-      );
-      const publisherModelIds = new Set(
-        links.filter((link) => link.relationshipType === "PUBLISHER").map((link) => link.modelId)
-      );
-      const collaboratorModelIds = new Set(
-        links.filter((link) => link.relationshipType === "COLLABORATOR").map((link) => link.modelId)
-      );
-
-      return {
-        id: l.id,
-        slug: l.slug,
-        name: l.name,
-        description: l.description,
-        website: l.website,
-        logoUrl: l.logoUrl,
-        country: l.country,
-        modelCount: distinctModelIds.size,
-        creatorModelCount: creatorModelIds.size,
-        publisherModelCount: publisherModelIds.size,
-        collaboratorModelCount: collaboratorModelIds.size,
-      };
-    });
+    // 4. Transform into DTOs
+    const items: AiLabDirectoryItemDto[] = labRows.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      name: r.name,
+      description: r.description,
+      website: r.website,
+      logoUrl: r.logoUrl,
+      country: r.country,
+      modelCount: Number(r.modelCount),
+      creatorModelCount: Number(r.creatorModelCount),
+      publisherModelCount: Number(r.publisherModelCount),
+      collaboratorModelCount: Number(r.collaboratorModelCount),
+    }));
 
     const totalPages = Math.ceil(totalItems / limit);
     const pagination: PaginationMeta = {
@@ -160,7 +150,7 @@ export class LabDirectoryQueryService implements ILabsQueryService {
   }
 
   /**
-   * Retrieve single AI Lab details with family distribution and paginated models
+   * Retrieve single AI Lab details with PostgreSQL-aggregated family distribution and paginated distinct models
    */
   async getLabBySlug(
     slug: string,
@@ -192,31 +182,43 @@ export class LabDirectoryQueryService implements ILabsQueryService {
       return null;
     }
 
-    // 2. Fetch full association set for this lab to calculate lab metrics and family distribution
-    const allLinks = await this.db.modelLab.findMany({
-      where: { aiLabId: lab.id },
-      select: {
-        modelId: true,
-        relationshipType: true,
-        model: {
-          select: {
-            id: true,
-            family: true,
-          },
-        },
-      },
-    });
+    // 2. Bounded SQL aggregations for Lab Metrics and Family Distribution in PostgreSQL
+    const [labSummaryRows, familyRows] = await Promise.all([
+      this.db.$queryRaw<Array<{
+        modelCount: number;
+        creatorModelCount: number;
+        publisherModelCount: number;
+        collaboratorModelCount: number;
+      }>>(Prisma.sql`
+        SELECT 
+          COUNT(DISTINCT ml."modelId")::int AS "modelCount",
+          COUNT(DISTINCT CASE WHEN ml."relationshipType" = 'CREATOR' THEN ml."modelId" END)::int AS "creatorModelCount",
+          COUNT(DISTINCT CASE WHEN ml."relationshipType" = 'PUBLISHER' THEN ml."modelId" END)::int AS "publisherModelCount",
+          COUNT(DISTINCT CASE WHEN ml."relationshipType" = 'COLLABORATOR' THEN ml."modelId" END)::int AS "collaboratorModelCount"
+        FROM "model_labs" ml
+        WHERE ml."aiLabId" = ${lab.id}
+      `),
+      this.db.$queryRaw<Array<{
+        family: string | null;
+        modelCount: number;
+      }>>(Prisma.sql`
+        SELECT 
+          m."family",
+          COUNT(DISTINCT m."id")::int AS "modelCount"
+        FROM "models" m
+        JOIN "model_labs" ml ON m."id" = ml."modelId"
+        WHERE ml."aiLabId" = ${lab.id}
+        GROUP BY m."family"
+        ORDER BY "modelCount" DESC, m."family" ASC NULLS LAST
+      `),
+    ]);
 
-    const distinctModelIds = new Set(allLinks.map((link) => link.modelId));
-    const creatorModelIds = new Set(
-      allLinks.filter((link) => link.relationshipType === "CREATOR").map((link) => link.modelId)
-    );
-    const publisherModelIds = new Set(
-      allLinks.filter((link) => link.relationshipType === "PUBLISHER").map((link) => link.modelId)
-    );
-    const collaboratorModelIds = new Set(
-      allLinks.filter((link) => link.relationshipType === "COLLABORATOR").map((link) => link.modelId)
-    );
+    const summary = labSummaryRows[0] ?? {
+      modelCount: 0,
+      creatorModelCount: 0,
+      publisherModelCount: 0,
+      collaboratorModelCount: 0,
+    };
 
     const labSummary: AiLabDirectoryItemDto = {
       id: lab.id,
@@ -226,30 +228,18 @@ export class LabDirectoryQueryService implements ILabsQueryService {
       website: lab.website,
       logoUrl: lab.logoUrl,
       country: lab.country,
-      modelCount: distinctModelIds.size,
-      creatorModelCount: creatorModelIds.size,
-      publisherModelCount: publisherModelIds.size,
-      collaboratorModelCount: collaboratorModelIds.size,
+      modelCount: Number(summary.modelCount),
+      creatorModelCount: Number(summary.creatorModelCount),
+      publisherModelCount: Number(summary.publisherModelCount),
+      collaboratorModelCount: Number(summary.collaboratorModelCount),
     };
 
-    // Calculate family distribution across distinct canonical models
-    const distinctModelFamilyMap = new Map<string, string | null>();
-    for (const link of allLinks) {
-      if (!distinctModelFamilyMap.has(link.model.id)) {
-        distinctModelFamilyMap.set(link.model.id, link.model.family);
-      }
-    }
+    const familyDistribution: FamilyDistributionItemDto[] = familyRows.map((f) => ({
+      family: f.family,
+      modelCount: Number(f.modelCount),
+    }));
 
-    const familyCounts = new Map<string | null, number>();
-    for (const family of distinctModelFamilyMap.values()) {
-      familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
-    }
-
-    const familyDistribution: FamilyDistributionItemDto[] = Array.from(familyCounts.entries())
-      .map(([family, modelCount]) => ({ family, modelCount }))
-      .sort((a, b) => b.modelCount - a.modelCount);
-
-    // 3. Paginate distinct canonical models associated with this lab
+    // 3. Paginate distinct canonical models associated with this lab in PostgreSQL
     const modelWhere: Prisma.ModelWhereInput = {
       labs: {
         some: {
@@ -290,17 +280,21 @@ export class LabDirectoryQueryService implements ILabsQueryService {
       }),
     ]);
 
-    const modelItems: AiLabModelItemDto[] = modelRows.map((m) => ({
-      id: m.id,
-      slug: m.slug,
-      name: m.name,
-      family: m.family,
-      releaseDate: m.releaseDate ? m.releaseDate.toISOString() : null,
-      status: m.status,
-      isReasoning: m.isReasoning,
-      isOpenWeight: m.isOpenWeight,
-      relationshipTypes: m.labs.map((l) => l.relationshipType),
-    }));
+    const modelItems: AiLabModelItemDto[] = modelRows.map((m) => {
+      // Distinct persisted roles for this model/lab pair
+      const distinctRoles = Array.from(new Set(m.labs.map((l) => l.relationshipType)));
+      return {
+        id: m.id,
+        slug: m.slug,
+        name: m.name,
+        family: m.family,
+        releaseDate: m.releaseDate ? m.releaseDate.toISOString() : null,
+        status: m.status,
+        isReasoning: m.isReasoning,
+        isOpenWeight: m.isOpenWeight,
+        relationshipTypes: distinctRoles,
+      };
+    });
 
     const totalPages = Math.ceil(totalItems / limit);
     const pagination: PaginationMeta = {

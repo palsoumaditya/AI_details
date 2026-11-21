@@ -10,7 +10,7 @@ import { ZodError } from "zod";
 
 /**
  * =========================================================================
- * ONEATLAS PHASE 4D — PROVIDER DIRECTORY & ENDPOINT MATRIX TEST SUITE
+ * ONEATLAS PHASE 4D.1 — PROVIDER DIRECTORY & ENDPOINT MATRIX TEST SUITE
  * =========================================================================
  */
 
@@ -38,6 +38,7 @@ interface ProviderTestContext {
   providerAggregatorSlug: string;
   modelAId: string;
   modelBId: string;
+  modelCId: string;
   createdProviderIds: string[];
   createdModelIds: string[];
 }
@@ -61,7 +62,7 @@ async function setupFixtures(): Promise<ProviderTestContext> {
   createdProviderIds.push(pEmpty.id);
 
   // 2. Provider with multiple endpoints and distinct models
-  // Model A and Model B
+  // Model A, Model B, and Model C
   const modelA = await prisma.model.create({
     data: {
       slug: `${FIXTURE_PREFIX}_model_a`,
@@ -81,6 +82,16 @@ async function setupFixtures(): Promise<ProviderTestContext> {
     },
   });
   createdModelIds.push(modelB.id);
+
+  const modelC = await prisma.model.create({
+    data: {
+      slug: `${FIXTURE_PREFIX}_model_c`,
+      name: "Fixture Multi Model Gamma",
+      family: "gamma-fam",
+      status: "ACTIVE",
+    },
+  });
+  createdModelIds.push(modelC.id);
 
   const pMultiSlug = `${FIXTURE_PREFIX}_multi`;
   const pMulti = await prisma.provider.create({
@@ -129,6 +140,17 @@ async function setupFixtures(): Promise<ProviderTestContext> {
             outputModalities: ["text"],
             lastSeenAt: null,
           },
+          // Endpoint 4: Model C, UNKNOWN status
+          {
+            modelId: modelC.id,
+            endpointKey: "fastscale-gamma-unknown",
+            name: "Gamma Experimental Node",
+            status: "UNKNOWN",
+            contextWindow: 32000,
+            inputModalities: ["text"],
+            outputModalities: ["text"],
+            lastSeenAt: new Date("2026-11-21T17:00:00Z"),
+          },
         ],
       },
     },
@@ -158,6 +180,7 @@ async function setupFixtures(): Promise<ProviderTestContext> {
     providerAggregatorSlug: pAggregatorSlug,
     modelAId: modelA.id,
     modelBId: modelB.id,
+    modelCId: modelC.id,
     createdProviderIds,
     createdModelIds,
   };
@@ -181,8 +204,13 @@ async function cleanupFixtures(ctx: ProviderTestContext): Promise<void> {
 
 async function runTests(): Promise<void> {
   console.log("🧪 =========================================================");
-  console.log("   ONEATLAS PROVIDER DIRECTORY & MATRIX TEST SUITE (4D)");
+  console.log("   ONEATLAS PROVIDER DIRECTORY & MATRIX TEST SUITE (4D.1)");
   console.log("=========================================================\n");
+
+  // Record baseline counts before provisioning
+  const baselineModelCount = await prisma.model.count();
+  const baselineProviderCount = await prisma.provider.count();
+  const baselineEndpointCount = await prisma.modelProviderEndpoint.count();
 
   let fixtures: ProviderTestContext | null = null;
 
@@ -224,6 +252,7 @@ async function runTests(): Promise<void> {
     assert(pEmpty?.provider.endpointCount === 0, "endpointCount is exactly 0");
     assert(pEmpty?.provider.onlineEndpointCount === 0, "onlineEndpointCount is exactly 0");
     assert(pEmpty?.provider.offlineEndpointCount === 0, "offlineEndpointCount is exactly 0");
+    assert(pEmpty?.provider.unknownEndpointCount === 0, "unknownEndpointCount is exactly 0");
     assert(pEmpty?.provider.modelCount === 0, "modelCount is exactly 0");
     assert(pEmpty?.provider.onlineModelCount === 0, "onlineModelCount is exactly 0");
     assert(pEmpty?.provider.supportedInputModalities.length === 0, "supportedInputModalities is empty array");
@@ -232,21 +261,34 @@ async function runTests(): Promise<void> {
     assert(pEmpty?.endpoints.length === 0, "Endpoints array is empty");
     assert(pEmpty?.pagination.total === 0, "Endpoints pagination total is 0");
 
+    // Zero-endpoint provider remains visible in directory collection
+    const dirWithZero = await providerDirectoryQueryService.listProviders({ q: fixtures.providerEmptySlug });
+    assert(dirWithZero.providers.length === 1 && dirWithZero.providers[0].slug === fixtures.providerEmptySlug, "Zero-endpoint provider remains visible in directory");
+    assert(dirWithZero.providers[0].endpointCount === 0, "Directory item endpointCount is 0");
+    assert(dirWithZero.providers[0].modelCount === 0, "Directory item modelCount is 0");
+
     // -------------------------------------------------------------
-    // 3. Endpoint Counts & Distinct Model Counting
+    // 3. Endpoint Counts & Distinct Model Counting (SQL Aggregation)
     // -------------------------------------------------------------
     console.log("\n3. Testing Endpoint Counts & Distinct Model Counting...");
 
-    // FastScale has 3 total endpoints (2 for Model A, 1 for Model B)
-    assert(pMulti?.provider.endpointCount === 3, "endpointCount is 3 across all endpoints");
+    // FastScale has 4 total endpoints:
+    // - Endpoint 1: Model A, ONLINE
+    // - Endpoint 2: Model A, ONLINE
+    // - Endpoint 3: Model B, OFFLINE
+    // - Endpoint 4: Model C, UNKNOWN
+    assert(pMulti?.provider.endpointCount === 4, "endpointCount is 4 across all endpoints");
     assert(pMulti?.provider.onlineEndpointCount === 2, "onlineEndpointCount is 2");
     assert(pMulti?.provider.offlineEndpointCount === 1, "offlineEndpointCount is 1");
-    assert(pMulti?.provider.unknownEndpointCount === 0, "unknownEndpointCount is 0");
+    assert(pMulti?.provider.unknownEndpointCount === 1, "unknownEndpointCount is 1 (status=UNKNOWN counted)");
 
     // Distinct model counting: Model A has 2 endpoints, but counts as ONE model!
-    assert(pMulti?.provider.modelCount === 2, "Multiple endpoints for same model count as 1 distinct model (Model A + Model B = 2)");
-    // Online model count: Only Model A is online! Model B is offline!
-    assert(pMulti?.provider.onlineModelCount === 1, "onlineModelCount is 1 (Model A only; offline Model B not counted)");
+    // Total models = Model A + Model B + Model C = 3
+    assert(pMulti?.provider.modelCount === 3, "Multiple endpoints for same model count as 1 distinct model (Model A + Model B + Model C = 3)");
+    assert(pMulti?.provider.endpointCount !== pMulti?.provider.modelCount, "Endpoint count (4) and model count (3) are strictly decoupled and not conflated");
+
+    // Online model count: Only Model A has online endpoints! Model B is OFFLINE, Model C is UNKNOWN!
+    assert(pMulti?.provider.onlineModelCount === 1, "onlineModelCount is 1 (Model A only; offline & unknown models not counted)");
 
     // -------------------------------------------------------------
     // 4. Modality Extraction & Timestamp Propagation
@@ -271,9 +313,9 @@ async function runTests(): Promise<void> {
     assert(pAgg?.provider.providerType === "AGGREGATOR", "AGGREGATOR provider type preserved (not conflated with direct)");
 
     // -------------------------------------------------------------
-    // 6. Directory Collection Queries, Search & Filters
+    // 6. Directory Collection Queries, Search, Filters & Sorting
     // -------------------------------------------------------------
-    console.log("\n6. Testing Directory Search, Filtering & Pagination...");
+    console.log("\n6. Testing Directory Search, Filtering, Sorting & Pagination...");
 
     // Free text search by name
     const searchByName = await providerDirectoryQueryService.listProviders({ q: "FastScale" });
@@ -298,6 +340,14 @@ async function runTests(): Promise<void> {
     const filterHasOnline = await providerDirectoryQueryService.listProviders({ hasOnlineEndpoints: true, q: FIXTURE_PREFIX });
     assert(filterHasOnline.providers.some((p) => p.slug === fixtures?.providerMultiSlug), "hasOnlineEndpoints=true includes provider with online endpoints");
 
+    // Sorting by endpoints_desc in PostgreSQL before pagination
+    const sortEndpoints = await providerDirectoryQueryService.listProviders({ sort: "endpoints_desc", q: FIXTURE_PREFIX });
+    assert(sortEndpoints.providers[0].slug === fixtures.providerMultiSlug, "endpoints_desc puts provider with most endpoints first");
+
+    // Sorting by models_desc in PostgreSQL before pagination
+    const sortModels = await providerDirectoryQueryService.listProviders({ sort: "models_desc", q: FIXTURE_PREFIX });
+    assert(sortModels.providers[0].slug === fixtures.providerMultiSlug, "models_desc puts provider with most distinct models first");
+
     // -------------------------------------------------------------
     // 7. Nested Endpoints Pagination & Modality Filters
     // -------------------------------------------------------------
@@ -306,8 +356,16 @@ async function runTests(): Promise<void> {
     // Paginated endpoints page 1 limit 2
     const epPage1 = await providerDirectoryQueryService.getProviderBySlug(fixtures.providerMultiSlug, { page: 1, limit: 2 });
     assert(epPage1?.endpoints.length === 2, "Page 1 limit 2 returns 2 endpoints");
-    assert(epPage1?.pagination.total === 3, "Total endpoints is 3");
+    assert(epPage1?.pagination.total === 4, "Total endpoints is 4");
     assert(epPage1?.pagination.totalPages === 2, "Total pages is 2");
+    assert(epPage1?.pagination.hasNextPage === true, "hasNextPage is true for page 1");
+    assert(epPage1?.pagination.hasPreviousPage === false, "hasPreviousPage is false for page 1");
+
+    // Page 2
+    const epPage2 = await providerDirectoryQueryService.getProviderBySlug(fixtures.providerMultiSlug, { page: 2, limit: 2 });
+    assert(epPage2?.endpoints.length === 2, "Page 2 limit 2 returns 2 endpoints");
+    assert(epPage2?.pagination.hasNextPage === false, "hasNextPage is false for page 2");
+    assert(epPage2?.pagination.hasPreviousPage === true, "hasPreviousPage is true for page 2");
 
     // Filter endpoints by status
     const epOnlineOnly = await providerDirectoryQueryService.getProviderBySlug(fixtures.providerMultiSlug, { status: "ONLINE" });
@@ -315,6 +373,9 @@ async function runTests(): Promise<void> {
 
     const epOfflineOnly = await providerDirectoryQueryService.getProviderBySlug(fixtures.providerMultiSlug, { status: "OFFLINE" });
     assert(epOfflineOnly?.endpoints.length === 1, "status=OFFLINE filter returns only the 1 offline endpoint");
+
+    const epUnknownOnly = await providerDirectoryQueryService.getProviderBySlug(fixtures.providerMultiSlug, { status: "UNKNOWN" });
+    assert(epUnknownOnly?.endpoints.length === 1, "status=UNKNOWN filter returns only the 1 unknown endpoint");
 
     // Filter endpoints by modality
     const epImageOnly = await providerDirectoryQueryService.getProviderBySlug(fixtures.providerMultiSlug, { inputModality: "image" });
@@ -354,9 +415,22 @@ async function runTests(): Promise<void> {
     assert(epSample["rawResponse"] === undefined, "Raw responses not exposed in endpoint DTO");
 
     // -------------------------------------------------------------
-    // 9. PostgreSQL EXPLAIN (ANALYZE, BUFFERS) Check
+    // 9. API Response Envelope Contract Verification
     // -------------------------------------------------------------
-    console.log("\n9. Testing PostgreSQL EXPLAIN (ANALYZE, BUFFERS)...");
+    console.log("\n9. Testing API Envelope Structure...");
+
+    // Validate that paginated directory result has correct pagination metadata shape
+    assert(typeof dirWithZero.pagination.page === "number", "Envelope has page integer");
+    assert(typeof dirWithZero.pagination.limit === "number", "Envelope has limit integer");
+    assert(typeof dirWithZero.pagination.total === "number", "Envelope has total integer");
+    assert(typeof dirWithZero.pagination.totalPages === "number", "Envelope has totalPages integer");
+    assert(typeof dirWithZero.pagination.hasNextPage === "boolean", "Envelope has hasNextPage boolean");
+    assert(typeof dirWithZero.pagination.hasPreviousPage === "boolean", "Envelope has hasPreviousPage boolean");
+
+    // -------------------------------------------------------------
+    // 10. PostgreSQL EXPLAIN (ANALYZE, BUFFERS) Verification
+    // -------------------------------------------------------------
+    console.log("\n10. Testing PostgreSQL EXPLAIN (ANALYZE, BUFFERS)...");
 
     const explainProviders = await prisma.$queryRawUnsafe<Array<{ "QUERY PLAN": string }>>(
       `EXPLAIN (ANALYZE, BUFFERS)
@@ -387,6 +461,20 @@ async function runTests(): Promise<void> {
       await cleanupFixtures(fixtures);
       console.log("✓ Fixtures successfully cleaned up.");
     }
+
+    // Re-verify database catalog baseline counts after cleanup
+    const afterModelCount = await prisma.model.count();
+    const afterProviderCount = await prisma.provider.count();
+    const afterEndpointCount = await prisma.modelProviderEndpoint.count();
+
+    console.log("\nChecking database catalog counts after test fixture teardown:");
+    console.log(`   Models:    ${afterModelCount} (baseline: ${baselineModelCount})`);
+    console.log(`   Providers: ${afterProviderCount} (baseline: ${baselineProviderCount})`);
+    console.log(`   Endpoints: ${afterEndpointCount} (baseline: ${baselineEndpointCount})`);
+
+    assert(afterModelCount === baselineModelCount, "Catalog model count unchanged after fixture cleanup");
+    assert(afterProviderCount === baselineProviderCount, "Catalog provider count unchanged after fixture cleanup");
+    assert(afterEndpointCount === baselineEndpointCount, "Catalog endpoint count unchanged after fixture cleanup");
   }
 
   console.log("\n=========================================================");

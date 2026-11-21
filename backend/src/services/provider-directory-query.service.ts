@@ -18,16 +18,17 @@ import {
 import type { IProvidersQueryService } from "./contracts/index";
 
 /**
- * Provider Directory Query Service (Phase 4D)
+ * Provider Directory Query Service (Phase 4D.1 Hardened)
  *
  * Implements high-performance catalog discovery, multi-modality aggregations,
- * provider-type filtering, and nested endpoint matrix queries for inference providers.
+ * provider-type filtering, count-based sorting, and nested endpoint matrix queries
+ * for inference providers — strictly aggregated in PostgreSQL.
  */
 export class ProviderDirectoryQueryService implements IProvidersQueryService {
   constructor(private readonly db: PrismaClient = prisma) {}
 
   /**
-   * Retrieve paginated directory of registered inference providers
+   * Retrieve paginated directory of registered inference providers with PostgreSQL-level aggregations
    */
   async listProviders(inputParams?: ProvidersInputQuery): Promise<ProviderDirectoryResult> {
     const query: ProvidersQuery = ProvidersQuerySchema.parse(inputParams ?? {});
@@ -36,140 +37,136 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
     const limit = query.limit;
     const skip = (page - 1) * limit;
 
-    // 1. Build relational WHERE filter
-    const where: Prisma.ProviderWhereInput = {};
+    // 1. Build relational parameterized WHERE filters
+    const conditions: Prisma.Sql[] = [];
 
     if (query.q) {
-      where.OR = [
-        { name: { contains: query.q, mode: "insensitive" } },
-        { slug: { contains: query.q, mode: "insensitive" } },
-      ];
+      const searchPattern = `%${query.q}%`;
+      conditions.push(Prisma.sql`(p."name" ILIKE ${searchPattern} OR p."slug" ILIKE ${searchPattern})`);
     }
 
     if (query.providerType) {
-      where.providerType = query.providerType as Prisma.EnumProviderTypeFilter;
+      conditions.push(Prisma.sql`p."providerType" = ${query.providerType}::"ProviderType"`);
     }
 
     if (query.hasEndpoints !== undefined) {
-      where.endpoints = query.hasEndpoints ? { some: {} } : { none: {} };
+      if (query.hasEndpoints) {
+        conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM "model_provider_endpoints" e WHERE e."providerId" = p."id")`);
+      } else {
+        conditions.push(Prisma.sql`NOT EXISTS (SELECT 1 FROM "model_provider_endpoints" e WHERE e."providerId" = p."id")`);
+      }
     }
 
     if (query.hasOnlineEndpoints !== undefined) {
-      where.endpoints = query.hasOnlineEndpoints
-        ? { some: { status: "ONLINE" } }
-        : { none: { status: "ONLINE" } };
+      if (query.hasOnlineEndpoints) {
+        conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM "model_provider_endpoints" e WHERE e."providerId" = p."id" AND e."status" = 'ONLINE')`);
+      } else {
+        conditions.push(Prisma.sql`NOT EXISTS (SELECT 1 FROM "model_provider_endpoints" e WHERE e."providerId" = p."id" AND e."status" = 'ONLINE')`);
+      }
     }
 
-    // 2. Build deterministic sorting
-    let orderBy: Prisma.ProviderOrderByWithRelationInput[];
+    const whereClause = conditions.length > 0
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+      : Prisma.empty;
+
+    // 2. Build deterministic sorting in PostgreSQL
+    let orderByClause: Prisma.Sql;
     switch (query.sort) {
       case "name_desc":
-        orderBy = [{ name: "desc" }, { id: "desc" }];
+        orderByClause = Prisma.sql`ORDER BY p."name" DESC, p."id" DESC`;
         break;
       case "endpoints_desc":
+        orderByClause = Prisma.sql`ORDER BY COUNT(e."id") DESC, p."name" ASC, p."id" DESC`;
+        break;
       case "models_desc":
-        orderBy = [{ endpoints: { _count: "desc" } }, { name: "asc" }, { id: "desc" }];
+        orderByClause = Prisma.sql`ORDER BY COUNT(DISTINCT e."modelId") DESC, p."name" ASC, p."id" DESC`;
         break;
       case "name_asc":
       default:
-        orderBy = [{ name: "asc" }, { id: "desc" }];
+        orderByClause = Prisma.sql`ORDER BY p."name" ASC, p."id" DESC`;
         break;
     }
 
-    // 3. Execute total count and paginated provider query in parallel
-    const [totalItems, providers] = await Promise.all([
-      this.db.provider.count({ where }),
-      this.db.provider.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy,
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          description: true,
-          website: true,
-          logoUrl: true,
-          providerType: true,
-        },
-      }),
+    // 3. Execute total count and paginated provider aggregation in parallel in PostgreSQL
+    const [countRows, providerRows] = await Promise.all([
+      this.db.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT count(*)::int AS count
+        FROM "providers" p
+        ${whereClause}
+      `),
+      this.db.$queryRaw<Array<{
+        id: string;
+        slug: string;
+        name: string;
+        description: string | null;
+        website: string | null;
+        logoUrl: string | null;
+        providerType: string;
+        endpointCount: number;
+        onlineEndpointCount: number;
+        offlineEndpointCount: number;
+        unknownEndpointCount: number;
+        modelCount: number;
+        onlineModelCount: number;
+        lastSeenAt: Date | null;
+        supportedInputModalities: string[];
+        supportedOutputModalities: string[];
+      }>>(Prisma.sql`
+        SELECT 
+          p."id",
+          p."slug",
+          p."name",
+          p."description",
+          p."website",
+          p."logoUrl",
+          p."providerType"::text AS "providerType",
+          COUNT(e."id")::int AS "endpointCount",
+          COUNT(CASE WHEN e."status" = 'ONLINE' THEN 1 END)::int AS "onlineEndpointCount",
+          COUNT(CASE WHEN e."status" = 'OFFLINE' THEN 1 END)::int AS "offlineEndpointCount",
+          COUNT(CASE WHEN e."status" NOT IN ('ONLINE', 'OFFLINE') THEN 1 END)::int AS "unknownEndpointCount",
+          COUNT(DISTINCT e."modelId")::int AS "modelCount",
+          COUNT(DISTINCT CASE WHEN e."status" = 'ONLINE' THEN e."modelId" END)::int AS "onlineModelCount",
+          MAX(e."lastSeenAt") AS "lastSeenAt",
+          COALESCE((
+            SELECT array_agg(DISTINCT elem ORDER BY elem)
+            FROM "model_provider_endpoints" ep, unnest(ep."inputModalities") elem
+            WHERE ep."providerId" = p."id"
+          ), ARRAY[]::text[]) AS "supportedInputModalities",
+          COALESCE((
+            SELECT array_agg(DISTINCT elem ORDER BY elem)
+            FROM "model_provider_endpoints" ep, unnest(ep."outputModalities") elem
+            WHERE ep."providerId" = p."id"
+          ), ARRAY[]::text[]) AS "supportedOutputModalities"
+        FROM "providers" p
+        LEFT JOIN "model_provider_endpoints" e ON p."id" = e."providerId"
+        ${whereClause}
+        GROUP BY p."id"
+        ${orderByClause}
+        LIMIT ${limit} OFFSET ${skip}
+      `),
     ]);
 
-    // 4. Batch fetch endpoint configurations for the current page to avoid N+1
-    const providerIds = providers.map((p) => p.id);
-    const endpointRows =
-      providerIds.length > 0
-        ? await this.db.modelProviderEndpoint.findMany({
-            where: { providerId: { in: providerIds } },
-            select: {
-              providerId: true,
-              modelId: true,
-              status: true,
-              inputModalities: true,
-              outputModalities: true,
-              lastSeenAt: true,
-            },
-          })
-        : [];
+    const totalItems = countRows[0]?.count ?? 0;
 
-    // Group endpoint metrics by providerId
-    const endpointsByProvider = new Map<string, typeof endpointRows>();
-    for (const ep of endpointRows) {
-      const list = endpointsByProvider.get(ep.providerId) ?? [];
-      list.push(ep);
-      endpointsByProvider.set(ep.providerId, list);
-    }
-
-    // 5. Transform providers into explicit DTOs with verified distinct aggregates
-    const items: ProviderDirectoryItemDto[] = providers.map((p) => {
-      const eps = endpointsByProvider.get(p.id) ?? [];
-      const distinctModelIds = new Set(eps.map((e) => e.modelId));
-      const onlineModelIds = new Set(
-        eps.filter((e) => e.status === "ONLINE").map((e) => e.modelId)
-      );
-
-      const inputModalitiesSet = new Set<string>();
-      const outputModalitiesSet = new Set<string>();
-      let maxLastSeen: Date | null = null;
-      let onlineCount = 0;
-      let offlineCount = 0;
-      let unknownCount = 0;
-
-      for (const ep of eps) {
-        if (ep.status === "ONLINE") onlineCount++;
-        else if (ep.status === "OFFLINE") offlineCount++;
-        else unknownCount++;
-
-        for (const m of ep.inputModalities) inputModalitiesSet.add(m);
-        for (const m of ep.outputModalities) outputModalitiesSet.add(m);
-
-        if (ep.lastSeenAt) {
-          if (!maxLastSeen || ep.lastSeenAt > maxLastSeen) {
-            maxLastSeen = ep.lastSeenAt;
-          }
-        }
-      }
-
-      return {
-        id: p.id,
-        slug: p.slug,
-        name: p.name,
-        description: p.description,
-        website: p.website,
-        logoUrl: p.logoUrl,
-        providerType: p.providerType,
-        endpointCount: eps.length,
-        onlineEndpointCount: onlineCount,
-        offlineEndpointCount: offlineCount,
-        unknownEndpointCount: unknownCount,
-        modelCount: distinctModelIds.size,
-        onlineModelCount: onlineModelIds.size,
-        supportedInputModalities: Array.from(inputModalitiesSet).sort(),
-        supportedOutputModalities: Array.from(outputModalitiesSet).sort(),
-        lastSeenAt: maxLastSeen ? maxLastSeen.toISOString() : null,
-      };
-    });
+    // 4. Map SQL rows to verified DTOs
+    const items: ProviderDirectoryItemDto[] = providerRows.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      name: r.name,
+      description: r.description,
+      website: r.website,
+      logoUrl: r.logoUrl,
+      providerType: r.providerType,
+      endpointCount: Number(r.endpointCount),
+      onlineEndpointCount: Number(r.onlineEndpointCount),
+      offlineEndpointCount: Number(r.offlineEndpointCount),
+      unknownEndpointCount: Number(r.unknownEndpointCount),
+      modelCount: Number(r.modelCount),
+      onlineModelCount: Number(r.onlineModelCount),
+      supportedInputModalities: r.supportedInputModalities ?? [],
+      supportedOutputModalities: r.supportedOutputModalities ?? [],
+      lastSeenAt: r.lastSeenAt ? new Date(r.lastSeenAt).toISOString() : null,
+    }));
 
     const totalPages = Math.ceil(totalItems / limit);
     const pagination: PaginationMeta = {
@@ -197,7 +194,7 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
   }
 
   /**
-   * Retrieve single provider details with paginated endpoint matrix
+   * Retrieve single provider details with PostgreSQL-aggregated metrics and paginated endpoint matrix
    */
   async getProviderBySlug(
     slug: string,
@@ -231,43 +228,51 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
       return null;
     }
 
-    // 2. Fetch full endpoint set for this provider to compute global provider summary
-    const allEndpoints = await this.db.modelProviderEndpoint.findMany({
-      where: { providerId: provider.id },
-      select: {
-        modelId: true,
-        status: true,
-        inputModalities: true,
-        outputModalities: true,
-        lastSeenAt: true,
-      },
-    });
+    // 2. Database-level aggregation for global provider summary
+    const summaryRows = await this.db.$queryRaw<Array<{
+      endpointCount: number;
+      onlineEndpointCount: number;
+      offlineEndpointCount: number;
+      unknownEndpointCount: number;
+      modelCount: number;
+      onlineModelCount: number;
+      lastSeenAt: Date | null;
+      supportedInputModalities: string[];
+      supportedOutputModalities: string[];
+    }>>(Prisma.sql`
+      SELECT 
+        COUNT(e."id")::int AS "endpointCount",
+        COUNT(CASE WHEN e."status" = 'ONLINE' THEN 1 END)::int AS "onlineEndpointCount",
+        COUNT(CASE WHEN e."status" = 'OFFLINE' THEN 1 END)::int AS "offlineEndpointCount",
+        COUNT(CASE WHEN e."status" NOT IN ('ONLINE', 'OFFLINE') THEN 1 END)::int AS "unknownEndpointCount",
+        COUNT(DISTINCT e."modelId")::int AS "modelCount",
+        COUNT(DISTINCT CASE WHEN e."status" = 'ONLINE' THEN e."modelId" END)::int AS "onlineModelCount",
+        MAX(e."lastSeenAt") AS "lastSeenAt",
+        COALESCE((
+          SELECT array_agg(DISTINCT elem ORDER BY elem)
+          FROM "model_provider_endpoints" ep, unnest(ep."inputModalities") elem
+          WHERE ep."providerId" = ${provider.id}
+        ), ARRAY[]::text[]) AS "supportedInputModalities",
+        COALESCE((
+          SELECT array_agg(DISTINCT elem ORDER BY elem)
+          FROM "model_provider_endpoints" ep, unnest(ep."outputModalities") elem
+          WHERE ep."providerId" = ${provider.id}
+        ), ARRAY[]::text[]) AS "supportedOutputModalities"
+      FROM "model_provider_endpoints" e
+      WHERE e."providerId" = ${provider.id}
+    `);
 
-    const distinctModelIds = new Set(allEndpoints.map((e) => e.modelId));
-    const onlineModelIds = new Set(
-      allEndpoints.filter((e) => e.status === "ONLINE").map((e) => e.modelId)
-    );
-    const inputModalitiesSet = new Set<string>();
-    const outputModalitiesSet = new Set<string>();
-    let maxLastSeen: Date | null = null;
-    let onlineCount = 0;
-    let offlineCount = 0;
-    let unknownCount = 0;
-
-    for (const ep of allEndpoints) {
-      if (ep.status === "ONLINE") onlineCount++;
-      else if (ep.status === "OFFLINE") offlineCount++;
-      else unknownCount++;
-
-      for (const m of ep.inputModalities) inputModalitiesSet.add(m);
-      for (const m of ep.outputModalities) outputModalitiesSet.add(m);
-
-      if (ep.lastSeenAt) {
-        if (!maxLastSeen || ep.lastSeenAt > maxLastSeen) {
-          maxLastSeen = ep.lastSeenAt;
-        }
-      }
-    }
+    const summary = summaryRows[0] ?? {
+      endpointCount: 0,
+      onlineEndpointCount: 0,
+      offlineEndpointCount: 0,
+      unknownEndpointCount: 0,
+      modelCount: 0,
+      onlineModelCount: 0,
+      lastSeenAt: null,
+      supportedInputModalities: [],
+      supportedOutputModalities: [],
+    };
 
     const providerSummary: ProviderDirectoryItemDto = {
       id: provider.id,
@@ -277,18 +282,18 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
       website: provider.website,
       logoUrl: provider.logoUrl,
       providerType: provider.providerType,
-      endpointCount: allEndpoints.length,
-      onlineEndpointCount: onlineCount,
-      offlineEndpointCount: offlineCount,
-      unknownEndpointCount: unknownCount,
-      modelCount: distinctModelIds.size,
-      onlineModelCount: onlineModelIds.size,
-      supportedInputModalities: Array.from(inputModalitiesSet).sort(),
-      supportedOutputModalities: Array.from(outputModalitiesSet).sort(),
-      lastSeenAt: maxLastSeen ? maxLastSeen.toISOString() : null,
+      endpointCount: Number(summary.endpointCount),
+      onlineEndpointCount: Number(summary.onlineEndpointCount),
+      offlineEndpointCount: Number(summary.offlineEndpointCount),
+      unknownEndpointCount: Number(summary.unknownEndpointCount),
+      modelCount: Number(summary.modelCount),
+      onlineModelCount: Number(summary.onlineModelCount),
+      supportedInputModalities: summary.supportedInputModalities ?? [],
+      supportedOutputModalities: summary.supportedOutputModalities ?? [],
+      lastSeenAt: summary.lastSeenAt ? new Date(summary.lastSeenAt).toISOString() : null,
     };
 
-    // 3. Paginate nested endpoints with filters
+    // 3. Paginate nested endpoints with filters in PostgreSQL
     const endpointWhere: Prisma.ModelProviderEndpointWhereInput = {
       providerId: provider.id,
       ...(query.status ? { status: query.status as Prisma.EnumEndpointStatusFilter } : {}),
@@ -310,7 +315,7 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
         where: endpointWhere,
         skip,
         take: limit,
-        orderBy: [{ lastSeenAt: "desc" }, { id: "desc" }],
+        orderBy: [{ lastSeenAt: { sort: "desc", nulls: "last" } }, { id: "desc" }],
         select: {
           id: true,
           endpointKey: true,

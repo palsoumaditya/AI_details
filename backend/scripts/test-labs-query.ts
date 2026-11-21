@@ -10,7 +10,7 @@ import { ZodError } from "zod";
 
 /**
  * =========================================================================
- * ONEATLAS PHASE 4D — AI LAB DIRECTORY & LINEAGE TEST SUITE
+ * ONEATLAS PHASE 4D.1 — AI LAB DIRECTORY & LINEAGE TEST SUITE
  * =========================================================================
  */
 
@@ -37,6 +37,7 @@ interface LabTestContext {
   modelAId: string;
   modelBId: string;
   modelCId: string;
+  modelDId: string;
   createdLabIds: string[];
   createdModelIds: string[];
 }
@@ -101,36 +102,48 @@ async function setupFixtures(): Promise<LabTestContext> {
   });
   createdModelIds.push(modelC.id);
 
-  // Model D: Unassociated model (should never appear under this lab)
+  // Model D: Unassociated model (should never appear in this lab's lineage)
   const modelD = await prisma.model.create({
     data: {
-      slug: `${FIXTURE_PREFIX}_unassociated_model`,
-      name: "Unrelated Foreign Model",
+      slug: `${FIXTURE_PREFIX}_model_foreign_d`,
+      name: "Foreign Autonomous Model D",
       family: "foreign-fam",
+      releaseDate: new Date("2026-03-01T00:00:00Z"),
       status: "ACTIVE",
     },
   });
   createdModelIds.push(modelD.id);
 
-  // 3. Multi Lab
+  // 3. Multi-model AI Lab with diverse relationship roles
   const labMultiSlug = `${FIXTURE_PREFIX}_multi_lab`;
   const labMulti = await prisma.aiLab.create({
     data: {
       slug: labMultiSlug,
       name: "Frontier Cybernetics Institute",
       description: "Global research lab developing omni intelligence",
-      website: "https://cybernetics.fixture.org",
-      logoUrl: "https://cybernetics.fixture.org/logo.png",
+      website: "https://frontier-cyber.fixture.org",
       country: "US",
       models: {
         create: [
-          // Model A has 2 roles: CREATOR and PUBLISHER!
-          { modelId: modelA.id, relationshipType: "CREATOR" },
-          { modelId: modelA.id, relationshipType: "PUBLISHER" },
-          // Model B has COLLABORATOR role
-          { modelId: modelB.id, relationshipType: "COLLABORATOR" },
-          // Model C has CREATOR role with null family
-          { modelId: modelC.id, relationshipType: "CREATOR" },
+          // Model A is both CREATOR and PUBLISHER (dual role test)
+          {
+            modelId: modelA.id,
+            relationshipType: "CREATOR",
+          },
+          {
+            modelId: modelA.id,
+            relationshipType: "PUBLISHER",
+          },
+          // Model B is COLLABORATOR
+          {
+            modelId: modelB.id,
+            relationshipType: "COLLABORATOR",
+          },
+          // Model C is CREATOR (with null family)
+          {
+            modelId: modelC.id,
+            relationshipType: "CREATOR",
+          },
         ],
       },
     },
@@ -139,12 +152,13 @@ async function setupFixtures(): Promise<LabTestContext> {
 
   return {
     labEmptyId: labEmpty.id,
-    labEmptySlug,
+    labEmptySlug: labEmptySlug,
     labMultiId: labMulti.id,
-    labMultiSlug,
+    labMultiSlug: labMultiSlug,
     modelAId: modelA.id,
     modelBId: modelB.id,
     modelCId: modelC.id,
+    modelDId: modelD.id,
     createdLabIds,
     createdModelIds,
   };
@@ -168,8 +182,13 @@ async function cleanupFixtures(ctx: LabTestContext): Promise<void> {
 
 async function runTests(): Promise<void> {
   console.log("🧪 =========================================================");
-  console.log("   ONEATLAS AI LAB DIRECTORY & LINEAGE TEST SUITE (4D)");
+  console.log("   ONEATLAS AI LAB DIRECTORY & LINEAGE TEST SUITE (4D.1)");
   console.log("=========================================================\n");
+
+  // Record baseline counts before provisioning
+  const baselineModelCount = await prisma.model.count();
+  const baselineLabCount = await prisma.aiLab.count();
+  const baselineModelLabCount = await prisma.modelLab.count();
 
   let fixtures: LabTestContext | null = null;
 
@@ -185,17 +204,17 @@ async function runTests(): Promise<void> {
 
     const labMulti = await labDirectoryQueryService.getLabBySlug(fixtures.labMultiSlug);
     assert(labMulti !== null, "Existing AI lab resolves successfully");
-    assert(labMulti?.lab.slug === fixtures.labMultiSlug, "Returned lab has identical slug");
+    assert(labMulti?.lab.slug === fixtures.labMultiSlug, "Lab has identical slug");
 
     const nonExistent = await labDirectoryQueryService.getLabBySlug("non-existent-lab-slug-9999");
     assert(nonExistent === null, "Unknown lab slug returns null");
 
-    const malformed = await labDirectoryQueryService.getLabBySlug("Invalid Slug With Spaces!");
-    assert(malformed === null, "Malformed slug returns null");
+    const malformed = await labDirectoryQueryService.getLabBySlug("Invalid Lab Slug!");
+    assert(malformed === null, "Malformed lab slug returns null");
 
     let slugValidationError = false;
     try {
-      LabSlugParamSchema.parse({ slug: "invalid/slug/with/slashes" });
+      LabSlugParamSchema.parse({ slug: "invalid/lab/slug" });
     } catch (e) {
       slugValidationError = e instanceof ZodError;
     }
@@ -216,17 +235,27 @@ async function runTests(): Promise<void> {
     assert(labEmpty?.models.length === 0, "Models array is empty");
     assert(labEmpty?.pagination.total === 0, "Pagination total is 0");
 
+    // Zero-model lab remains visible in directory collection
+    const dirWithZero = await labDirectoryQueryService.listLabs({ q: fixtures.labEmptySlug });
+    assert(dirWithZero.labs.length === 1 && dirWithZero.labs[0].slug === fixtures.labEmptySlug, "Zero-model lab remains visible in directory");
+    assert(dirWithZero.labs[0].modelCount === 0, "Directory item modelCount is 0");
+
     // -------------------------------------------------------------
-    // 3. Distinct Model Counts & Relationship Roles
+    // 3. Distinct Model Counts & Relationship Roles (SQL Aggregation)
     // -------------------------------------------------------------
     console.log("\n3. Testing Distinct Model Counts & Role Attribution...");
 
     // Model A has 2 roles (CREATOR, PUBLISHER), Model B (COLLABORATOR), Model C (CREATOR)
+    // Total ModelLab records for this lab = 4
     // Distinct models = 3 (Model A, B, C)
     assert(labMulti?.lab.modelCount === 3, "Distinct model count is exactly 3 (Model A, B, C)");
     assert(labMulti?.lab.creatorModelCount === 2, "creatorModelCount is 2 (Model A + Model C)");
     assert(labMulti?.lab.publisherModelCount === 1, "publisherModelCount is 1 (Model A)");
     assert(labMulti?.lab.collaboratorModelCount === 1, "collaboratorModelCount is 1 (Model B)");
+
+    // Role-specific counts sum to 2 + 1 + 1 = 4, which is > total distinct model count (3)
+    const roleSum = (labMulti?.lab.creatorModelCount ?? 0) + (labMulti?.lab.publisherModelCount ?? 0) + (labMulti?.lab.collaboratorModelCount ?? 0);
+    assert(roleSum === 4 && roleSum > (labMulti?.lab.modelCount ?? 0), "Role-specific counts correctly sum to more than distinct modelCount due to dual role on Model A");
 
     // -------------------------------------------------------------
     // 4. Model Collection Deduplication & Array Roles
@@ -242,12 +271,12 @@ async function runTests(): Promise<void> {
       modelAItem?.relationshipTypes.includes("CREATOR") &&
         modelAItem?.relationshipTypes.includes("PUBLISHER") &&
         modelAItem?.relationshipTypes.length === 2,
-      "Model A reflects all persisted roles in relationshipTypes array without duplication in the model collection"
+      "Model A reflects all distinct persisted roles in relationshipTypes array without duplication in the model collection"
     );
 
     // Ensure unassociated foreign model D is NOT returned
     assert(
-      !labMulti?.models.some((m) => m.slug.includes("unassociated")),
+      !labMulti?.models.some((m) => m.slug.includes("foreign_d")),
       "Foreign unassociated model D is strictly excluded"
     );
 
@@ -266,16 +295,39 @@ async function runTests(): Promise<void> {
     assert(nullGroup?.modelCount === 1, "Null family is preserved as unclassified group with 1 model");
 
     // -------------------------------------------------------------
-    // 6. Filtering by Relationship Role and Family
+    // 6. Independence of Family Distribution from Pagination & Filters
     // -------------------------------------------------------------
-    console.log("\n6. Testing Relationship Role & Family Filters...");
+    console.log("\n6. Testing Independence of Family Distribution from Pagination & Filters...");
 
-    // Filter by role CREATOR (Model A, Model C = 2 models)
+    // Test with page 1 limit 1: models array has 1 item, but family distribution must STILL have all 3 models!
+    const page1Limit1 = await labDirectoryQueryService.getLabBySlug(fixtures.labMultiSlug, { page: 1, limit: 1 });
+    assert(page1Limit1?.models.length === 1, "Page 1 limit 1 returns 1 model in collection");
+    assert(page1Limit1?.familyDistribution.length === 2, "Family distribution covers all 2 groups regardless of pagination page size");
+    assert(
+      page1Limit1?.familyDistribution.find((g) => g.family === "omni-fam")?.modelCount === 2,
+      "omni-fam count is 2 regardless of pagination page size"
+    );
+
+    // Test with page 2 limit 1: models array has next item, family distribution unchanged
+    const page2Limit1 = await labDirectoryQueryService.getLabBySlug(fixtures.labMultiSlug, { page: 2, limit: 1 });
+    assert(page2Limit1?.models.length === 1, "Page 2 limit 1 returns 1 model in collection");
+    assert(
+      page2Limit1?.familyDistribution.find((g) => g.family === "omni-fam")?.modelCount === 2,
+      "Family distribution unchanged across different pagination pages"
+    );
+
+    // Filter by role CREATOR (Model A, Model C = 2 models in paginated collection)
     const creatorOnly = await labDirectoryQueryService.getLabBySlug(fixtures.labMultiSlug, {
       relationshipType: "CREATOR",
     });
     assert(creatorOnly?.models.length === 2, "relationshipType=CREATOR returns 2 models");
     assert(creatorOnly?.pagination.total === 2, "Pagination total is 2");
+    // Verify family distribution is STILL across the lab's full association set (3 models, 2 omni + 1 null), not just the CREATOR models!
+    assert(creatorOnly?.familyDistribution.length === 2, "Global family distribution remains intact when filtering paginated models by role");
+    assert(
+      creatorOnly?.familyDistribution.find((g) => g.family === "omni-fam")?.modelCount === 2,
+      "omni-fam count is 2 in global family distribution even when role filter applied"
+    );
 
     // Filter by role COLLABORATOR (Model B = 1 model)
     const collabOnly = await labDirectoryQueryService.getLabBySlug(fixtures.labMultiSlug, {
@@ -283,19 +335,18 @@ async function runTests(): Promise<void> {
     });
     assert(collabOnly?.models.length === 1 && collabOnly?.models[0].slug.includes("omni_b"), "relationshipType=COLLABORATOR returns Model B");
 
-    // Filter by family "omni-fam" (Model A, Model B = 2 models)
+    // Filter by family "omni-fam" (Model A, Model B = 2 models in paginated collection)
     const famFilter = await labDirectoryQueryService.getLabBySlug(fixtures.labMultiSlug, {
       family: "omni-fam",
     });
     assert(famFilter?.models.length === 2, "family=omni-fam returns 2 models");
-
-    // Verify family distribution is computed across the lab's full association set, even when filtering
-    assert(famFilter?.familyDistribution.length === 2, "Global family distribution remains intact when filtering paginated models");
+    // Verify global family distribution STILL includes null family (unclassified) model
+    assert(famFilter?.familyDistribution.length === 2, "Global family distribution remains intact when filtering paginated models by family");
 
     // -------------------------------------------------------------
-    // 7. Directory Collection Queries, Search & Country Filters
+    // 7. Directory Collection Queries, Search, Filters & Sorting
     // -------------------------------------------------------------
-    console.log("\n7. Testing Directory Search, Country Filters & Pagination...");
+    console.log("\n7. Testing Directory Search, Country Filters, Sorting & Pagination...");
 
     // Search by name
     const searchName = await labDirectoryQueryService.listLabs({ q: "Cybernetics" });
@@ -312,11 +363,17 @@ async function runTests(): Promise<void> {
     const filterDE = await labDirectoryQueryService.listLabs({ country: "DE", q: FIXTURE_PREFIX });
     assert(filterDE.labs.length === 1 && filterDE.labs[0].slug === fixtures.labEmptySlug, "country=DE filter matches DE lab");
 
+    // Sorting by models_desc in PostgreSQL before pagination
+    const sortModels = await labDirectoryQueryService.listLabs({ sort: "models_desc", q: FIXTURE_PREFIX });
+    assert(sortModels.labs[0].slug === fixtures.labMultiSlug, "models_desc puts lab with most distinct models first");
+
     // Pagination limit & page
     const page1 = await labDirectoryQueryService.getLabBySlug(fixtures.labMultiSlug, { page: 1, limit: 2 });
     assert(page1?.models.length === 2, "Page 1 limit 2 returns 2 models");
     assert(page1?.pagination.total === 3, "Total models is 3");
     assert(page1?.pagination.totalPages === 2, "Total pages is 2");
+    assert(page1?.pagination.hasNextPage === true, "hasNextPage is true for page 1");
+    assert(page1?.pagination.hasPreviousPage === false, "hasPreviousPage is false for page 1");
 
     // -------------------------------------------------------------
     // 8. Validation Bounds & SQL Injection Safety
@@ -346,9 +403,21 @@ async function runTests(): Promise<void> {
     assert(Array.isArray(sqlSearch.labs), "SQL injection attack string handled safely via parameters");
 
     // -------------------------------------------------------------
-    // 9. PostgreSQL EXPLAIN (ANALYZE, BUFFERS) Check
+    // 9. API Response Envelope Contract Verification
     // -------------------------------------------------------------
-    console.log("\n9. Testing PostgreSQL EXPLAIN (ANALYZE, BUFFERS)...");
+    console.log("\n9. Testing API Envelope Structure...");
+
+    assert(typeof dirWithZero.pagination.page === "number", "Envelope has page integer");
+    assert(typeof dirWithZero.pagination.limit === "number", "Envelope has limit integer");
+    assert(typeof dirWithZero.pagination.total === "number", "Envelope has total integer");
+    assert(typeof dirWithZero.pagination.totalPages === "number", "Envelope has totalPages integer");
+    assert(typeof dirWithZero.pagination.hasNextPage === "boolean", "Envelope has hasNextPage boolean");
+    assert(typeof dirWithZero.pagination.hasPreviousPage === "boolean", "Envelope has hasPreviousPage boolean");
+
+    // -------------------------------------------------------------
+    // 10. PostgreSQL EXPLAIN (ANALYZE, BUFFERS) Check
+    // -------------------------------------------------------------
+    console.log("\n10. Testing PostgreSQL EXPLAIN (ANALYZE, BUFFERS)...");
 
     const explainLabs = await prisma.$queryRawUnsafe<Array<{ "QUERY PLAN": string }>>(
       `EXPLAIN (ANALYZE, BUFFERS)
@@ -379,6 +448,20 @@ async function runTests(): Promise<void> {
       await cleanupFixtures(fixtures);
       console.log("✓ Fixtures successfully cleaned up.");
     }
+
+    // Re-verify database catalog baseline counts after cleanup
+    const afterModelCount = await prisma.model.count();
+    const afterLabCount = await prisma.aiLab.count();
+    const afterModelLabCount = await prisma.modelLab.count();
+
+    console.log("\nChecking database catalog counts after test fixture teardown:");
+    console.log(`   Models:    ${afterModelCount} (baseline: ${baselineModelCount})`);
+    console.log(`   Labs:      ${afterLabCount} (baseline: ${baselineLabCount})`);
+    console.log(`   ModelLabs: ${afterModelLabCount} (baseline: ${baselineModelLabCount})`);
+
+    assert(afterModelCount === baselineModelCount, "Catalog model count unchanged after fixture cleanup");
+    assert(afterLabCount === baselineLabCount, "Catalog lab count unchanged after fixture cleanup");
+    assert(afterModelLabCount === baselineModelLabCount, "Catalog model_labs count unchanged after fixture cleanup");
   }
 
   console.log("\n=========================================================");

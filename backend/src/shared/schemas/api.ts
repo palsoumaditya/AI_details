@@ -266,24 +266,42 @@ const booleanPreprocessor = (val: unknown) => {
 };
 
 /** Provider Directory Query Schema */
-export const ProvidersQuerySchema = z.object({
-  q: z.string().trim().max(100, "Search query cannot exceed 100 characters").optional(),
-  providerType: z.enum(["DIRECT", "CLOUD", "AGGREGATOR", "HOSTING", "UNKNOWN"]).optional(),
-  hasEndpoints: z.preprocess(booleanPreprocessor, z.boolean().optional()),
-  hasOnlineEndpoints: z.preprocess(booleanPreprocessor, z.boolean().optional()),
-  page: z.coerce
-    .number()
-    .int("Page must be an integer")
-    .min(1, "Page must be greater than or equal to 1")
-    .default(PAGINATION_CONSTRAINTS.DEFAULT_PAGE),
-  limit: z.coerce
-    .number()
-    .int("Limit must be an integer")
-    .min(PAGINATION_CONSTRAINTS.MIN_LIMIT, "Limit must be at least 1")
-    .max(PAGINATION_CONSTRAINTS.MAX_LIMIT, `Limit cannot exceed ${PAGINATION_CONSTRAINTS.MAX_LIMIT}`)
-    .default(PAGINATION_CONSTRAINTS.DEFAULT_LIMIT),
-  sort: z.enum(["name_asc", "name_desc", "endpoints_desc", "models_desc"]).default("name_asc"),
-});
+export const ProvidersQuerySchema = z
+  .object({
+    q: z.string().trim().max(100, "Search query cannot exceed 100 characters").optional(),
+    providerType: z.enum(["DIRECT", "CLOUD", "AGGREGATOR", "HOSTING", "UNKNOWN"]).optional(),
+    hasEndpoints: z.preprocess(booleanPreprocessor, z.boolean().optional()),
+    hasOnlineEndpoints: z.preprocess(booleanPreprocessor, z.boolean().optional()),
+    page: z.coerce
+      .number()
+      .int("Page must be an integer")
+      .min(1, "Page must be greater than or equal to 1")
+      .default(PAGINATION_CONSTRAINTS.DEFAULT_PAGE),
+    limit: z.coerce
+      .number()
+      .int("Limit must be an integer")
+      .min(PAGINATION_CONSTRAINTS.MIN_LIMIT, "Limit must be at least 1")
+      .max(PAGINATION_CONSTRAINTS.MAX_LIMIT, `Limit cannot exceed ${PAGINATION_CONSTRAINTS.MAX_LIMIT}`)
+      .default(PAGINATION_CONSTRAINTS.DEFAULT_LIMIT),
+    sort: z
+      .enum(["name_asc", "name_desc", "endpoints_desc", "models_desc", "name", "endpoints", "models"])
+      .default("name_asc"),
+    order: z.enum(["asc", "desc"]).optional(),
+  })
+  .transform((data) => {
+    let resolvedSort = data.sort;
+    if (data.sort === "name") {
+      resolvedSort = data.order === "desc" ? "name_desc" : "name_asc";
+    } else if (data.sort === "endpoints") {
+      resolvedSort = "endpoints_desc";
+    } else if (data.sort === "models") {
+      resolvedSort = "models_desc";
+    }
+    return {
+      ...data,
+      sort: resolvedSort as "name_asc" | "name_desc" | "endpoints_desc" | "models_desc",
+    };
+  });
 
 export type ProvidersQuery = z.infer<typeof ProvidersQuerySchema>;
 export type ProvidersInputQuery = z.input<typeof ProvidersQuerySchema>;
@@ -310,22 +328,38 @@ export type ProviderEndpointsQuery = z.infer<typeof ProviderEndpointsQuerySchema
 export type ProviderEndpointsInputQuery = z.input<typeof ProviderEndpointsQuerySchema>;
 
 /** AI Lab Directory Query Schema */
-export const LabsQuerySchema = z.object({
-  q: z.string().trim().max(100, "Search query cannot exceed 100 characters").optional(),
-  country: z.string().trim().max(50, "Country code cannot exceed 50 characters").optional(),
-  page: z.coerce
-    .number()
-    .int("Page must be an integer")
-    .min(1, "Page must be greater than or equal to 1")
-    .default(PAGINATION_CONSTRAINTS.DEFAULT_PAGE),
-  limit: z.coerce
-    .number()
-    .int("Limit must be an integer")
-    .min(PAGINATION_CONSTRAINTS.MIN_LIMIT, "Limit must be at least 1")
-    .max(PAGINATION_CONSTRAINTS.MAX_LIMIT, `Limit cannot exceed ${PAGINATION_CONSTRAINTS.MAX_LIMIT}`)
-    .default(PAGINATION_CONSTRAINTS.DEFAULT_LIMIT),
-  sort: z.enum(["name_asc", "name_desc", "models_desc"]).default("name_asc"),
-});
+export const LabsQuerySchema = z
+  .object({
+    q: z.string().trim().max(100, "Search query cannot exceed 100 characters").optional(),
+    country: z.string().trim().max(50, "Country code cannot exceed 50 characters").optional(),
+    page: z.coerce
+      .number()
+      .int("Page must be an integer")
+      .min(1, "Page must be greater than or equal to 1")
+      .default(PAGINATION_CONSTRAINTS.DEFAULT_PAGE),
+    limit: z.coerce
+      .number()
+      .int("Limit must be an integer")
+      .min(PAGINATION_CONSTRAINTS.MIN_LIMIT, "Limit must be at least 1")
+      .max(PAGINATION_CONSTRAINTS.MAX_LIMIT, `Limit cannot exceed ${PAGINATION_CONSTRAINTS.MAX_LIMIT}`)
+      .default(PAGINATION_CONSTRAINTS.DEFAULT_LIMIT),
+    sort: z
+      .enum(["name_asc", "name_desc", "models_desc", "name", "models"])
+      .default("name_asc"),
+    order: z.enum(["asc", "desc"]).optional(),
+  })
+  .transform((data) => {
+    let resolvedSort = data.sort;
+    if (data.sort === "name") {
+      resolvedSort = data.order === "desc" ? "name_desc" : "name_asc";
+    } else if (data.sort === "models") {
+      resolvedSort = "models_desc";
+    }
+    return {
+      ...data,
+      sort: resolvedSort as "name_asc" | "name_desc" | "models_desc",
+    };
+  });
 
 export type LabsQuery = z.infer<typeof LabsQuerySchema>;
 export type LabsInputQuery = z.input<typeof LabsQuerySchema>;
