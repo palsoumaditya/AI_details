@@ -4,16 +4,20 @@ import type {
   PricingOfferDto,
   ModelCatalogPricingSummaryDto,
   PaginationMeta,
+  ModelDetailDto,
+  PricingHistoryResult,
 } from "../shared/types/api";
 import {
   ModelsCatalogQuery,
   ModelsCatalogInputQuery,
   ModelsCatalogQuerySchema,
+  PricingHistoryInputQuery,
 } from "../shared/schemas/api";
 import type {
   IModelsQueryService,
   ModelsCatalogResult,
 } from "./contracts/index";
+import { modelDetailQueryService } from "./model-detail-query.service";
 
 /**
  * Model Catalog Query Service (Phase 4B)
@@ -122,14 +126,6 @@ export class ModelsQueryService implements IModelsQueryService {
       pagination,
       appliedFilters: query,
     };
-  }
-
-  /**
-   * Placeholder for future Phase 4C (Model Details)
-   */
-  async getModelBySlug(): Promise<null> {
-    // Phase 4C scope
-    return null;
   }
 
   // ==========================================
@@ -599,6 +595,23 @@ export class ModelsQueryService implements IModelsQueryService {
       lowestOutput: lowestOutputOffer,
       availableProviderCount: availableProviders.size,
     };
+  }
+
+  /**
+   * Delegate single model detail lookup to ModelDetailQueryService (Phase 4C)
+   */
+  async getModelBySlug(slug: string): Promise<ModelDetailDto | null> {
+    return modelDetailQueryService.getModelDetails(slug);
+  }
+
+  /**
+   * Delegate pricing history lookup to ModelDetailQueryService (Phase 4C)
+   */
+  async getModelPricingHistory(
+    slug: string,
+    query: PricingHistoryInputQuery
+  ): Promise<PricingHistoryResult | null> {
+    return modelDetailQueryService.getModelPricingHistory(slug, query);
   }
 }
 

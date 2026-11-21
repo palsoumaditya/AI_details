@@ -7,15 +7,18 @@ import type {
   BenchmarkDto,
   BenchmarkResultDto,
   PaginationMeta,
+  PricingHistoryResult,
 } from "../../shared/types/api";
 import type {
   ModelsCatalogQuery,
   ModelsCatalogInputQuery,
+  PricingHistoryQuery,
+  PricingHistoryInputQuery,
   CompareRequest,
 } from "../../shared/schemas/api";
 
 /**
- * Backend Query Service Contracts (Phase 4A & 4B)
+ * Backend Query Service Contracts (Phase 4A, 4B, 4C)
  *
  * Defines explicit boundaries between HTTP Route Handlers and Backend Services.
  * These interfaces enforce DTO serialization and prevent direct Prisma queries in route handlers.
@@ -41,6 +44,12 @@ export interface ModelsCatalogResult {
 export interface IModelsQueryService {
   getModelsCatalog(params: ModelsCatalogInputQuery): Promise<ModelsCatalogResult>;
   getModelBySlug(slug: string): Promise<ModelDetailDto | null>;
+  getModelPricingHistory(slug: string, query: PricingHistoryInputQuery): Promise<PricingHistoryResult | null>;
+}
+
+export interface IModelDetailQueryService {
+  getModelDetails(slug: string): Promise<ModelDetailDto | null>;
+  getModelPricingHistory(slug: string, query: PricingHistoryInputQuery): Promise<PricingHistoryResult | null>;
 }
 
 export interface IProvidersQueryService {

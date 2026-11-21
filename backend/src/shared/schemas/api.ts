@@ -211,3 +211,44 @@ export type ModelsCatalogQuery = z.infer<typeof ModelsCatalogQuerySchema>;
 export type ModelsCatalogInputQuery = z.input<typeof ModelsCatalogQuerySchema>;
 export const ModelsQueryFilterSchema = ModelsCatalogQuerySchema;
 export type ModelsQueryFilter = ModelsCatalogQuery;
+
+/** Model Slug Path Parameter Schema (Phase 4C) */
+export const ModelSlugParamSchema = SlugParamSchema;
+export type ModelSlugParam = SlugParam;
+
+/** Pricing History Query Schema (Phase 4C) */
+export const PricingHistoryQuerySchema = z
+  .object({
+    provider: z.string().trim().max(100, "Provider slug cannot exceed 100 characters").optional(),
+    source: z.string().trim().max(100, "Source slug cannot exceed 100 characters").optional(),
+    endpoint: z.string().trim().max(200, "Endpoint key cannot exceed 200 characters").optional(),
+    from: z.string().datetime({ message: "from must be a valid ISO 8601 date string" }).optional(),
+    to: z.string().datetime({ message: "to must be a valid ISO 8601 date string" }).optional(),
+    page: z.coerce
+      .number()
+      .int("Page must be an integer")
+      .min(1, "Page must be greater than or equal to 1")
+      .default(PAGINATION_CONSTRAINTS.DEFAULT_PAGE),
+    limit: z.coerce
+      .number()
+      .int("Limit must be an integer")
+      .min(PAGINATION_CONSTRAINTS.MIN_LIMIT, "Limit must be at least 1")
+      .max(PAGINATION_CONSTRAINTS.MAX_LIMIT, `Limit cannot exceed ${PAGINATION_CONSTRAINTS.MAX_LIMIT}`)
+      .default(PAGINATION_CONSTRAINTS.DEFAULT_LIMIT),
+    sort: z.enum(["newest", "oldest"]).default("newest"),
+  })
+  .refine(
+    (data) => {
+      if (data.from && data.to) {
+        return new Date(data.from).getTime() <= new Date(data.to).getTime();
+      }
+      return true;
+    },
+    {
+      message: "from date cannot be after to date",
+      path: ["from"],
+    }
+  );
+
+export type PricingHistoryQuery = z.infer<typeof PricingHistoryQuerySchema>;
+export type PricingHistoryInputQuery = z.input<typeof PricingHistoryQuerySchema>;

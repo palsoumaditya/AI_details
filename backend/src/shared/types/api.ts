@@ -93,31 +93,69 @@ export interface ModelCatalogPricingSummaryDto {
   availableProviderCount: number;
 }
 
+/** Individual Endpoint Pricing Offer */
+export interface EndpointPricingOfferDto {
+  source: {
+    slug: string;
+    name: string;
+  } | null;
+  inputPricePerMillion: string | null;
+  outputPricePerMillion: string | null;
+  cacheReadPricePerMillion: string | null;
+  cacheWritePricePerMillion: string | null;
+  currency: string;
+  pricingUnit: string;
+  observedAt: string;
+}
+
 /** Canonical AI Lab representation */
 export interface AiLabDto {
   id: string;
   slug: string;
   name: string;
   website: string | null;
+  logoUrl?: string | null;
   country: string | null;
-  isVerified: boolean;
+  isVerified?: boolean;
 }
 
-/** Canonical Provider Endpoint representation */
+/** Verified Model-to-Lab Association */
+export interface ModelLabDto {
+  id: string;
+  slug: string;
+  name: string;
+  website: string | null;
+  logoUrl: string | null;
+  country: string | null;
+  relationshipType: "CREATOR" | "PUBLISHER" | "COLLABORATOR";
+}
+
+/** Canonical Provider Endpoint representation (Phase 4C) */
 export interface ModelEndpointDto {
   id: string;
+  endpointKey: string;
+  name: string | null;
+  status: string;
+  contextWindow: number | null;
+  maxOutputTokens: number | null;
+  inputModalities: string[];
+  outputModalities: string[];
+  capabilities: Record<string, unknown> | null;
+  isModerated: boolean;
+  lastSeenAt: string | null;
   provider: {
     id: string;
     slug: string;
     name: string;
     website: string | null;
+    logoUrl: string | null;
     providerType: string;
   };
-  contextWindow: number | null;
-  maxOutputTokens: number | null;
-  supportsStreaming: boolean;
-  status: string;
-  pricing: PricingDto | null;
+  sourceMappings: Array<{
+    source: string;
+    observedAt: string | null;
+  }>;
+  pricing: EndpointPricingOfferDto[];
 }
 
 /** Canonical Model Item for Discovery Catalog (Phase 4B) */
@@ -146,17 +184,23 @@ export interface ModelCatalogItemDto {
 /** Canonical Model Summary (Legacy alias for compatibility) */
 export type ModelSummaryDto = ModelCatalogItemDto;
 
-/** Canonical Model Detail (Full Profile) */
-export interface ModelDetailDto extends ModelCatalogItemDto {
-  architecture?: string | null;
-  parameterCount?: string | null;
-  quantization?: string | null;
-  license?: string | null;
-  endpoints: ModelEndpointDto[];
-  provenanceSummary?: {
-    lastSynchronizedAt: string | null;
-    primarySource: string | null;
-  };
+/** Field-Level Provenance DTO (Phase 4C) */
+export interface FieldProvenanceDto {
+  fieldKey: string;
+  sourceSlug: string;
+  sourceName: string;
+  sourceExternalId: string | null;
+  confidence: number | null;
+  selectedAt: string;
+}
+
+/** Data Quality Summary DTO (Phase 4C) */
+export interface DataQualitySummaryDto {
+  status: "VERIFIED" | "PARTIAL" | "CONFLICTED" | "UNKNOWN";
+  lastMetadataUpdate: string | null;
+  hasConflicts: boolean;
+  conflictCount: number;
+  warnings: string[];
 }
 
 /** Inference Provider Representation */
@@ -170,7 +214,7 @@ export interface ProviderDto {
   supportedModelsCount?: number;
 }
 
-/** Benchmark Definition & Score Representation */
+/** Benchmark Definition Representation */
 export interface BenchmarkDto {
   id: string;
   slug: string;
@@ -182,10 +226,98 @@ export interface BenchmarkDto {
   scoreRangeMax: number | null;
 }
 
+/** Detailed Benchmark Result representation (Phase 4C) */
 export interface BenchmarkResultDto {
-  benchmark: BenchmarkDto;
-  score: string;
-  recordedAt: string;
+  id: string;
+  benchmark: {
+    slug: string;
+    name: string;
+    version: string;
+    category: string;
+    metricName: string;
+    metricUnit: string;
+    higherIsBetter: boolean;
+  };
+  result: {
+    value: string;
+    evaluationDate: string | null;
+    modelVersion: string | null;
+    sampleSize: number | null;
+    sourceUrl: string | null;
+    notes: string | null;
+  };
+  source: {
+    slug: string;
+    name: string;
+  };
+}
+
+/** Canonical Model Detail Full Profile (Phase 4C) */
+export interface ModelDetailDto {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  family: string | null;
+  architectureType: string | null;
+  releaseDate: string | null;
+  knowledgeCutoff: string | null;
+  lastUpdated: string;
+  license: string | null;
+  isReasoning: boolean | null;
+  isOpenWeight: boolean | null;
+  contextWindow: number | null;
+  maxOutputTokens: number | null;
+  inputModalities: string[];
+  outputModalities: string[];
+  capabilities: Record<string, unknown> | null;
+  status: string;
+  labs: ModelLabDto[];
+  endpoints: ModelEndpointDto[];
+  pricingSummary: ModelCatalogPricingSummaryDto;
+  benchmarks: BenchmarkResultDto[];
+  provenance: Record<string, FieldProvenanceDto>;
+  dataQuality: DataQualitySummaryDto;
+}
+
+/** Pricing History Record Representation (Phase 4C) */
+export interface PricingHistoryRecordDto {
+  id: string;
+  endpointId: string;
+  endpointKey: string;
+  provider: {
+    id: string;
+    slug: string;
+    name: string;
+  };
+  source: {
+    slug: string;
+    name: string;
+  } | null;
+  inputPricePerMillion: string | null;
+  outputPricePerMillion: string | null;
+  cacheReadPricePerMillion: string | null;
+  cacheWritePricePerMillion: string | null;
+  currency: string;
+  pricingUnit: string;
+  observedAt: string;
+}
+
+/** Pricing History Query Result (Phase 4C) */
+export interface PricingHistoryResult {
+  records: PricingHistoryRecordDto[];
+  pagination: PaginationMeta;
+  appliedFilters: {
+    slug: string;
+    provider?: string;
+    source?: string;
+    endpoint?: string;
+    from?: string;
+    to?: string;
+    sort: "newest" | "oldest";
+    page: number;
+    limit: number;
+  };
 }
 
 /** System Health & Readiness Representation */

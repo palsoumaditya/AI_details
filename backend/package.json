@@ -30,6 +30,7 @@
     "test:api": "tsx scripts/test-api-foundation.ts",
     "test:modelsdev": "tsx scripts/test-modelsdev.ts",
     "test:models-query": "tsx scripts/test-models-query.ts",
+    "test:model-detail": "tsx scripts/test-model-detail-query.ts",
     "test:resolution": "tsx scripts/test-identity-resolution.ts",
     "test:coordinator": "tsx scripts/test-ingestion-coordinator.ts",
     "db:smoke-test": "tsx scripts/db-smoke-test.ts",
