@@ -1,12 +1,11 @@
 import { z } from "zod";
 import {
   PAGINATION_CONSTRAINTS,
-  SORT_ALLOWLISTS,
-  SORT_ORDERS,
+  MODEL_CATALOG_SORTS,
 } from "../constants/api";
 
 /**
- * Reusable Zod Validation Schemas for Incoming Request Parameters (Phase 4A)
+ * Reusable Zod Validation Schemas for Incoming Request Parameters (Phase 4A & 4B)
  */
 
 /** Pagination Query Parameters */
@@ -73,20 +72,142 @@ export const HealthCheckQuerySchema = z.object({
 
 export type HealthCheckQuery = z.infer<typeof HealthCheckQuerySchema>;
 
-/** Future Model Discovery Filter Schema (Contract specification for Phase 4B) */
-export const ModelsQueryFilterSchema = PaginationQuerySchema.extend({
-  q: z.string().trim().max(100).optional(),
-  lab: z.string().trim().max(64).optional(),
-  provider: z.string().trim().max(64).optional(),
-  modality: z.enum(["text", "image", "audio", "video"]).optional(),
-  reasoning: z.coerce.boolean().optional(),
-  openWeights: z.coerce.boolean().optional(),
-  minimumContext: z.coerce.number().int().min(0).optional(),
-  maximumContext: z.coerce.number().int().min(0).optional(),
-  minimumInputPrice: z.coerce.number().min(0).optional(),
-  maximumInputPrice: z.coerce.number().min(0).optional(),
-  sort: z.enum(SORT_ALLOWLISTS.MODELS).default("name"),
-  order: z.enum(SORT_ORDERS).default("asc"),
-});
+/**
+ * Model Catalog Query Parameters Schema (Phase 4B)
+ *
+ * Validates, normalizes, and sanitizes all incoming filters for GET /api/v1/models.
+ */
+export const ModelsCatalogQuerySchema = z
+  .object({
+    page: z.coerce
+      .number()
+      .int("Page must be an integer")
+      .min(1, "Page must be greater than or equal to 1")
+      .default(PAGINATION_CONSTRAINTS.DEFAULT_PAGE),
+    limit: z.coerce
+      .number()
+      .int("Limit must be an integer")
+      .min(PAGINATION_CONSTRAINTS.MIN_LIMIT, "Limit must be at least 1")
+      .max(PAGINATION_CONSTRAINTS.MAX_LIMIT, `Limit cannot exceed ${PAGINATION_CONSTRAINTS.MAX_LIMIT}`)
+      .default(PAGINATION_CONSTRAINTS.DEFAULT_LIMIT),
+    q: z
+      .string()
+      .trim()
+      .max(100, "Search query cannot exceed 100 characters")
+      .optional()
+      .transform((val) => (val && val.length > 0 ? val : undefined)),
+    lab: z
+      .string()
+      .trim()
+      .max(64, "Lab slug cannot exceed 64 characters")
+      .optional()
+      .transform((val) => (val && val.length > 0 ? val : undefined)),
+    provider: z
+      .string()
+      .trim()
+      .max(64, "Provider slug cannot exceed 64 characters")
+      .optional()
+      .transform((val) => (val && val.length > 0 ? val : undefined)),
+    modality: z
+      .string()
+      .trim()
+      .max(32)
+      .optional()
+      .transform((val) => (val && val.length > 0 ? val.toLowerCase() : undefined)),
+    inputModality: z
+      .string()
+      .trim()
+      .max(32)
+      .optional()
+      .transform((val) => (val && val.length > 0 ? val.toLowerCase() : undefined)),
+    outputModality: z
+      .string()
+      .trim()
+      .max(32)
+      .optional()
+      .transform((val) => (val && val.length > 0 ? val.toLowerCase() : undefined)),
+    reasoning: z
+      .union([z.boolean(), z.enum(["true", "false"])])
+      .optional()
+      .transform((val) => {
+        if (val === undefined) return undefined;
+        if (typeof val === "boolean") return val;
+        return val === "true";
+      }),
+    openWeights: z
+      .union([z.boolean(), z.enum(["true", "false"])])
+      .optional()
+      .transform((val) => {
+        if (val === undefined) return undefined;
+        if (typeof val === "boolean") return val;
+        return val === "true";
+      }),
+    minimumContext: z.coerce
+      .number()
+      .int("Minimum context must be an integer")
+      .min(0, "Minimum context must be >= 0")
+      .optional(),
+    maximumContext: z.coerce
+      .number()
+      .int("Maximum context must be an integer")
+      .min(0, "Maximum context must be >= 0")
+      .optional(),
+    minimumInputPrice: z.coerce
+      .number()
+      .min(0, "Minimum input price must be >= 0")
+      .optional(),
+    maximumInputPrice: z.coerce
+      .number()
+      .min(0, "Maximum input price must be >= 0")
+      .optional(),
+    minimumOutputPrice: z.coerce
+      .number()
+      .min(0, "Minimum output price must be >= 0")
+      .optional(),
+    maximumOutputPrice: z.coerce
+      .number()
+      .min(0, "Maximum output price must be >= 0")
+      .optional(),
+    sort: z.enum(MODEL_CATALOG_SORTS).default("newest"),
+  })
+  .refine(
+    (data) => {
+      if (data.minimumContext !== undefined && data.maximumContext !== undefined) {
+        return data.minimumContext <= data.maximumContext;
+      }
+      return true;
+    },
+    {
+      message: "minimumContext cannot exceed maximumContext",
+      path: ["minimumContext"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.minimumInputPrice !== undefined && data.maximumInputPrice !== undefined) {
+        return data.minimumInputPrice <= data.maximumInputPrice;
+      }
+      return true;
+    },
+    {
+      message: "minimumInputPrice cannot exceed maximumInputPrice",
+      path: ["minimumInputPrice"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.minimumOutputPrice !== undefined && data.maximumOutputPrice !== undefined) {
+        return data.minimumOutputPrice <= data.maximumOutputPrice;
+      }
+      return true;
+    },
+    {
+      message: "minimumOutputPrice cannot exceed maximumOutputPrice",
+      path: ["minimumOutputPrice"],
+    }
+  );
 
-export type ModelsQueryFilter = z.infer<typeof ModelsQueryFilterSchema>;
+export type ModelsCatalogQuery = z.infer<typeof ModelsCatalogQuerySchema>;
+export type ModelsCatalogInputQuery = z.input<typeof ModelsCatalogQuerySchema>;
+export const ModelsQueryFilterSchema = ModelsCatalogQuerySchema;
+export type ModelsQueryFilter = ModelsCatalogQuery;

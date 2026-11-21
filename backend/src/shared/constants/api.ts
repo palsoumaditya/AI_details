@@ -1,5 +1,5 @@
 /**
- * Standard API Constants, Error Codes, and Allowlists for OneAtlas.dev (Phase 4A)
+ * Standard API Constants, Error Codes, and Allowlists for OneAtlas.dev (Phase 4A & 4B)
  */
 
 export const API_VERSION = "v1" as const;
@@ -41,15 +41,25 @@ export const PAGINATION_CONSTRAINTS = {
   MAX_LIMIT: 100,
 } as const;
 
-/** Strict Sorting Allowlists (Prevent Arbitrary DB Field Injection) */
+/** Model Catalog Sort Options (Phase 4B) */
+export const MODEL_CATALOG_SORTS = [
+  "newest",
+  "oldest",
+  "name_asc",
+  "name_desc",
+  "context_desc",
+  "context_asc",
+  "input_price_asc",
+  "input_price_desc",
+  "output_price_asc",
+  "output_price_desc",
+] as const;
+
+export type ModelCatalogSort = (typeof MODEL_CATALOG_SORTS)[number];
+
+/** Strict Sorting Allowlists */
 export const SORT_ALLOWLISTS = {
-  MODELS: [
-    "name",
-    "releaseDate",
-    "contextWindow",
-    "inputPrice",
-    "createdAt",
-  ] as const,
+  MODELS: MODEL_CATALOG_SORTS,
   PROVIDERS: ["name", "slug", "createdAt"] as const,
   LABS: ["name", "slug", "createdAt"] as const,
   RANKINGS: ["score", "recordedAt"] as const,

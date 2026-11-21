@@ -199,8 +199,8 @@ async function runApiTests(): Promise<void> {
   assert(caughtDuplicateCompare, "Duplicate model slugs in comparison rejected");
 
   // Sort allowlists
-  const validSort = ModelsQueryFilterSchema.parse({ sort: "releaseDate", order: "desc" });
-  assert(validSort.sort === "releaseDate" && validSort.order === "desc", "Allowlisted sort field accepted");
+  const validSort = ModelsQueryFilterSchema.parse({ sort: "newest" });
+  assert(validSort.sort === "newest", "Allowlisted sort field accepted");
 
   let caughtDisallowedSort = false;
   try {

@@ -1,6 +1,6 @@
 import type {
   HealthDto,
-  ModelSummaryDto,
+  ModelCatalogItemDto,
   ModelDetailDto,
   ProviderDto,
   AiLabDto,
@@ -9,12 +9,13 @@ import type {
   PaginationMeta,
 } from "../../shared/types/api";
 import type {
-  ModelsQueryFilter,
+  ModelsCatalogQuery,
+  ModelsCatalogInputQuery,
   CompareRequest,
 } from "../../shared/schemas/api";
 
 /**
- * Backend Query Service Contracts (Phase 4A)
+ * Backend Query Service Contracts (Phase 4A & 4B)
  *
  * Defines explicit boundaries between HTTP Route Handlers and Backend Services.
  * These interfaces enforce DTO serialization and prevent direct Prisma queries in route handlers.
@@ -31,11 +32,14 @@ export interface IHealthService {
   getReadiness(timeoutMs?: number): Promise<HealthDto>;
 }
 
-export interface IModelsQueryService {
-  listModels(
-    params: ModelsQueryFilter
-  ): Promise<{ data: ModelSummaryDto[]; pagination: PaginationMeta }>;
+export interface ModelsCatalogResult {
+  models: ModelCatalogItemDto[];
+  pagination: PaginationMeta;
+  appliedFilters: ModelsCatalogQuery;
+}
 
+export interface IModelsQueryService {
+  getModelsCatalog(params: ModelsCatalogInputQuery): Promise<ModelsCatalogResult>;
   getModelBySlug(slug: string): Promise<ModelDetailDto | null>;
 }
 

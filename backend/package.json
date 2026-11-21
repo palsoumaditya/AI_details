@@ -29,6 +29,7 @@
     "test:openrouter": "tsx scripts/test-openrouter.ts",
     "test:api": "tsx scripts/test-api-foundation.ts",
     "test:modelsdev": "tsx scripts/test-modelsdev.ts",
+    "test:models-query": "tsx scripts/test-models-query.ts",
     "test:resolution": "tsx scripts/test-identity-resolution.ts",
     "test:coordinator": "tsx scripts/test-ingestion-coordinator.ts",
     "db:smoke-test": "tsx scripts/db-smoke-test.ts",

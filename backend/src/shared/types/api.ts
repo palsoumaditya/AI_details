@@ -1,5 +1,5 @@
 /**
- * Standard API Response and DTO Contracts for OneAtlas.dev (Phase 4A)
+ * Standard API Response and DTO Contracts for OneAtlas.dev (Phase 4A & 4B)
  *
  * Strict separation between external response representations and internal database models.
  */
@@ -73,6 +73,26 @@ export interface PricingDto {
   effectiveAt?: string;
 }
 
+/** Individual Pricing Offer with Provider & Source Attribution */
+export interface PricingOfferDto {
+  amount: string;
+  currency: "USD";
+  unit: "1M_TOKENS";
+  provider: {
+    name: string;
+    slug: string;
+  };
+  source: string;
+  observedAt: string;
+}
+
+/** Model Pricing Summary for Catalog Views */
+export interface ModelCatalogPricingSummaryDto {
+  lowestInput: PricingOfferDto | null;
+  lowestOutput: PricingOfferDto | null;
+  availableProviderCount: number;
+}
+
 /** Canonical AI Lab representation */
 export interface AiLabDto {
   id: string;
@@ -100,28 +120,34 @@ export interface ModelEndpointDto {
   pricing: PricingDto | null;
 }
 
-/** Canonical Model Summary (Discovery & Catalog) */
-export interface ModelSummaryDto {
+/** Canonical Model Item for Discovery Catalog (Phase 4B) */
+export interface ModelCatalogItemDto {
   id: string;
   slug: string;
   name: string;
-  family: string | null;
   description: string | null;
-  status: "ACTIVE" | "DEPRECATED" | "EXPERIMENTAL";
+  family: string | null;
+  releaseDate: string | null;
+  knowledgeCutoff: string | null;
   contextWindow: number | null;
   maxOutputTokens: number | null;
-  inputModalities: string[];
-  outputModalities: string[];
   isReasoning: boolean | null;
   isOpenWeight: boolean | null;
-  releaseDate: string | null;
-  lab: AiLabDto | null;
-  startingPricePerMillion: string | null;
-  endpointCount: number;
+  inputModalities: string[];
+  outputModalities: string[];
+  labs: Array<{
+    id: string;
+    name: string;
+    slug: string;
+  }>;
+  pricing: ModelCatalogPricingSummaryDto;
 }
 
+/** Canonical Model Summary (Legacy alias for compatibility) */
+export type ModelSummaryDto = ModelCatalogItemDto;
+
 /** Canonical Model Detail (Full Profile) */
-export interface ModelDetailDto extends ModelSummaryDto {
+export interface ModelDetailDto extends ModelCatalogItemDto {
   architecture?: string | null;
   parameterCount?: string | null;
   quantization?: string | null;
