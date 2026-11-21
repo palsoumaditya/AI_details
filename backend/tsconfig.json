@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/database": ["./src/database/index.ts"],
+      "@/database/*": ["./src/database/*"],
+      "@/shared": ["./src/shared/index.ts"],
+      "@/shared/*": ["./src/shared/*"],
+      "@oneatlas/database": ["./src/database/index.ts"],
+      "@oneatlas/database/*": ["./src/database/*"],
+      "@oneatlas/shared": ["./src/shared/index.ts"],
+      "@oneatlas/shared/*": ["./src/shared/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "prisma/**/*.ts"],
+  "exclude": ["node_modules"]
+}

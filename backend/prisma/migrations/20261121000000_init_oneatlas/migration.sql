@@ -1,0 +1,359 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
+-- CreateEnum
+CREATE TYPE "LabRole" AS ENUM ('CREATOR', 'PUBLISHER', 'COLLABORATOR');
+
+-- CreateEnum
+CREATE TYPE "ProviderType" AS ENUM ('DIRECT', 'CLOUD', 'AGGREGATOR', 'HOSTING');
+
+-- CreateEnum
+CREATE TYPE "ModelStatus" AS ENUM ('ACTIVE', 'DEPRECATED', 'EXPERIMENTAL');
+
+-- CreateEnum
+CREATE TYPE "EndpointStatus" AS ENUM ('ONLINE', 'OFFLINE', 'DEPRECATED', 'UNKNOWN');
+
+-- CreateEnum
+CREATE TYPE "BenchmarkCategory" AS ENUM ('REASONING', 'CODING', 'MATH', 'KNOWLEDGE', 'MULTIMODAL', 'SPEED', 'COMPOSITE');
+
+-- CreateEnum
+CREATE TYPE "MetricUnit" AS ENUM ('PERCENTAGE', 'TOKENS_PER_SEC', 'MILLISECONDS', 'SCORE', 'RAW');
+
+-- CreateEnum
+CREATE TYPE "SyncTriggerType" AS ENUM ('CRON', 'MANUAL');
+
+-- CreateEnum
+CREATE TYPE "SyncStatus" AS ENUM ('STARTED', 'COMPLETED', 'FAILED', 'PARTIAL');
+
+-- CreateTable
+CREATE TABLE "ai_labs" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "website" TEXT,
+    "logoUrl" TEXT,
+    "description" TEXT,
+    "country" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ai_labs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "models" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "releaseDate" TIMESTAMP(3),
+    "license" TEXT,
+    "architectureType" TEXT,
+    "isReasoning" BOOLEAN NOT NULL DEFAULT false,
+    "isOpenWeight" BOOLEAN NOT NULL DEFAULT false,
+    "inputModalities" TEXT[] DEFAULT ARRAY['text']::TEXT[],
+    "outputModalities" TEXT[] DEFAULT ARRAY['text']::TEXT[],
+    "capabilities" JSONB,
+    "contextWindow" INTEGER,
+    "maxOutputTokens" INTEGER,
+    "status" "ModelStatus" NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "models_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "model_labs" (
+    "id" TEXT NOT NULL,
+    "modelId" TEXT NOT NULL,
+    "aiLabId" TEXT NOT NULL,
+    "relationshipType" "LabRole" NOT NULL DEFAULT 'CREATOR',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "model_labs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "providers" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "website" TEXT,
+    "logoUrl" TEXT,
+    "description" TEXT,
+    "apiDocUrl" TEXT,
+    "providerType" "ProviderType" NOT NULL DEFAULT 'DIRECT',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "providers_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "external_sources" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "baseUrl" TEXT,
+    "website" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "external_sources_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "model_source_mappings" (
+    "id" TEXT NOT NULL,
+    "modelId" TEXT NOT NULL,
+    "sourceId" TEXT NOT NULL,
+    "externalModelId" TEXT NOT NULL,
+    "externalSlug" TEXT,
+    "payloadHash" TEXT,
+    "lastFetchedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "model_source_mappings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "model_provider_endpoints" (
+    "id" TEXT NOT NULL,
+    "modelId" TEXT NOT NULL,
+    "providerId" TEXT NOT NULL,
+    "endpointKey" TEXT NOT NULL,
+    "name" TEXT,
+    "contextWindow" INTEGER,
+    "maxOutputTokens" INTEGER,
+    "status" "EndpointStatus" NOT NULL DEFAULT 'ONLINE',
+    "isModerated" BOOLEAN NOT NULL DEFAULT false,
+    "lastSeenAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "model_provider_endpoints_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "pricing_records" (
+    "id" TEXT NOT NULL,
+    "modelProviderEndpointId" TEXT NOT NULL,
+    "sourceId" TEXT,
+    "inputPricePerMillion" DECIMAL(20,10),
+    "outputPricePerMillion" DECIMAL(20,10),
+    "cacheReadPricePerMillion" DECIMAL(20,10),
+    "cacheWritePricePerMillion" DECIMAL(20,10),
+    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "pricingUnit" TEXT NOT NULL DEFAULT '1M_TOKENS',
+    "observedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "pricing_records_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "benchmarks" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "version" TEXT NOT NULL DEFAULT '1.0',
+    "category" "BenchmarkCategory" NOT NULL DEFAULT 'REASONING',
+    "metricName" TEXT NOT NULL,
+    "metricUnit" "MetricUnit" NOT NULL DEFAULT 'PERCENTAGE',
+    "higherIsBetter" BOOLEAN NOT NULL DEFAULT true,
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "benchmarks_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "benchmark_results" (
+    "id" TEXT NOT NULL,
+    "modelId" TEXT NOT NULL,
+    "benchmarkId" TEXT NOT NULL,
+    "sourceId" TEXT NOT NULL,
+    "providerEndpointId" TEXT,
+    "metricValue" DECIMAL(12,4) NOT NULL,
+    "evaluationDate" TIMESTAMP(3),
+    "observedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "modelVersion" TEXT,
+    "sampleSize" INTEGER,
+    "evaluationConfig" JSONB,
+    "sourceUrl" TEXT,
+    "notes" TEXT,
+
+    CONSTRAINT "benchmark_results_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "sync_runs" (
+    "id" TEXT NOT NULL,
+    "sourceId" TEXT NOT NULL,
+    "triggerType" "SyncTriggerType" NOT NULL DEFAULT 'CRON',
+    "status" "SyncStatus" NOT NULL DEFAULT 'STARTED',
+    "itemsProcessed" INTEGER NOT NULL DEFAULT 0,
+    "itemsInserted" INTEGER NOT NULL DEFAULT 0,
+    "itemsUpdated" INTEGER NOT NULL DEFAULT 0,
+    "itemsSkipped" INTEGER NOT NULL DEFAULT 0,
+    "errorSummary" TEXT,
+    "errorDetails" JSONB,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "sync_runs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "raw_source_records" (
+    "id" TEXT NOT NULL,
+    "sourceId" TEXT NOT NULL,
+    "syncRunId" TEXT,
+    "entityType" TEXT NOT NULL,
+    "externalId" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "payloadHash" TEXT NOT NULL,
+    "fetchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "raw_source_records_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ai_labs_slug_key" ON "ai_labs"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "models_slug_key" ON "models"("slug");
+
+-- CreateIndex
+CREATE INDEX "models_status_idx" ON "models"("status");
+
+-- CreateIndex
+CREATE INDEX "models_releaseDate_idx" ON "models"("releaseDate" DESC);
+
+-- CreateIndex
+CREATE INDEX "models_isReasoning_idx" ON "models"("isReasoning");
+
+-- CreateIndex
+CREATE INDEX "models_isOpenWeight_idx" ON "models"("isOpenWeight");
+
+-- CreateIndex
+CREATE INDEX "model_labs_modelId_idx" ON "model_labs"("modelId");
+
+-- CreateIndex
+CREATE INDEX "model_labs_aiLabId_idx" ON "model_labs"("aiLabId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "model_labs_modelId_aiLabId_relationshipType_key" ON "model_labs"("modelId", "aiLabId", "relationshipType");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "providers_slug_key" ON "providers"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "external_sources_slug_key" ON "external_sources"("slug");
+
+-- CreateIndex
+CREATE INDEX "model_source_mappings_modelId_idx" ON "model_source_mappings"("modelId");
+
+-- CreateIndex
+CREATE INDEX "model_source_mappings_sourceId_idx" ON "model_source_mappings"("sourceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "model_source_mappings_sourceId_externalModelId_key" ON "model_source_mappings"("sourceId", "externalModelId");
+
+-- CreateIndex
+CREATE INDEX "model_provider_endpoints_modelId_idx" ON "model_provider_endpoints"("modelId");
+
+-- CreateIndex
+CREATE INDEX "model_provider_endpoints_providerId_idx" ON "model_provider_endpoints"("providerId");
+
+-- CreateIndex
+CREATE INDEX "model_provider_endpoints_status_idx" ON "model_provider_endpoints"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "model_provider_endpoints_modelId_providerId_endpointKey_key" ON "model_provider_endpoints"("modelId", "providerId", "endpointKey");
+
+-- CreateIndex
+CREATE INDEX "pricing_records_modelProviderEndpointId_observedAt_idx" ON "pricing_records"("modelProviderEndpointId", "observedAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "pricing_records_sourceId_observedAt_idx" ON "pricing_records"("sourceId", "observedAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "benchmarks_category_idx" ON "benchmarks"("category");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "benchmarks_slug_version_key" ON "benchmarks"("slug", "version");
+
+-- CreateIndex
+CREATE INDEX "benchmark_results_benchmarkId_metricValue_idx" ON "benchmark_results"("benchmarkId", "metricValue" DESC);
+
+-- CreateIndex
+CREATE INDEX "benchmark_results_modelId_benchmarkId_idx" ON "benchmark_results"("modelId", "benchmarkId");
+
+-- CreateIndex
+CREATE INDEX "benchmark_results_sourceId_evaluationDate_idx" ON "benchmark_results"("sourceId", "evaluationDate" DESC);
+
+-- CreateIndex
+CREATE INDEX "sync_runs_sourceId_startedAt_idx" ON "sync_runs"("sourceId", "startedAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "sync_runs_status_idx" ON "sync_runs"("status");
+
+-- CreateIndex
+CREATE INDEX "raw_source_records_sourceId_fetchedAt_idx" ON "raw_source_records"("sourceId", "fetchedAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "raw_source_records_syncRunId_idx" ON "raw_source_records"("syncRunId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "raw_source_records_sourceId_entityType_externalId_payloadHa_key" ON "raw_source_records"("sourceId", "entityType", "externalId", "payloadHash");
+
+-- AddForeignKey
+ALTER TABLE "model_labs" ADD CONSTRAINT "model_labs_modelId_fkey" FOREIGN KEY ("modelId") REFERENCES "models"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "model_labs" ADD CONSTRAINT "model_labs_aiLabId_fkey" FOREIGN KEY ("aiLabId") REFERENCES "ai_labs"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "model_source_mappings" ADD CONSTRAINT "model_source_mappings_modelId_fkey" FOREIGN KEY ("modelId") REFERENCES "models"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "model_source_mappings" ADD CONSTRAINT "model_source_mappings_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "external_sources"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "model_provider_endpoints" ADD CONSTRAINT "model_provider_endpoints_modelId_fkey" FOREIGN KEY ("modelId") REFERENCES "models"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "model_provider_endpoints" ADD CONSTRAINT "model_provider_endpoints_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "providers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "pricing_records" ADD CONSTRAINT "pricing_records_modelProviderEndpointId_fkey" FOREIGN KEY ("modelProviderEndpointId") REFERENCES "model_provider_endpoints"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "pricing_records" ADD CONSTRAINT "pricing_records_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "external_sources"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "benchmark_results" ADD CONSTRAINT "benchmark_results_modelId_fkey" FOREIGN KEY ("modelId") REFERENCES "models"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "benchmark_results" ADD CONSTRAINT "benchmark_results_benchmarkId_fkey" FOREIGN KEY ("benchmarkId") REFERENCES "benchmarks"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "benchmark_results" ADD CONSTRAINT "benchmark_results_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "external_sources"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "benchmark_results" ADD CONSTRAINT "benchmark_results_providerEndpointId_fkey" FOREIGN KEY ("providerEndpointId") REFERENCES "model_provider_endpoints"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "sync_runs" ADD CONSTRAINT "sync_runs_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "external_sources"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "raw_source_records" ADD CONSTRAINT "raw_source_records_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "external_sources"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "raw_source_records" ADD CONSTRAINT "raw_source_records_syncRunId_fkey" FOREIGN KEY ("syncRunId") REFERENCES "sync_runs"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

@@ -1,0 +1,39 @@
+{
+  "name": "oneatlas",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @oneatlas/frontend",
+    "build": "npm run build -w @oneatlas/frontend",
+    "start": "npm run start -w @oneatlas/frontend",
+    "lint": "npm run lint -w @oneatlas/frontend",
+    "typecheck": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p backend/tsconfig.json",
+    "db:validate": "npm run db:validate -w @oneatlas/backend",
+    "db:generate": "npm run db:generate -w @oneatlas/backend",
+    "db:migrate:dev": "npm run db:migrate:dev -w @oneatlas/backend",
+    "db:migrate:deploy": "npm run db:migrate:deploy -w @oneatlas/backend",
+    "db:migrate:status": "npm run db:migrate:status -w @oneatlas/backend",
+    "db:seed": "npm run db:seed -w @oneatlas/backend",
+    "db:studio": "npm run db:studio -w @oneatlas/backend",
+    "db:smoke-test": "npm run db:smoke-test -w @oneatlas/backend",
+    "sync:openrouter": "npm run sync:openrouter -w @oneatlas/backend",
+    "sync:modelsdev": "npm run sync:modelsdev -w @oneatlas/backend",
+    "sync:all": "npm run sync:all -w @oneatlas/backend",
+    "test:openrouter": "npm run test:openrouter -w @oneatlas/backend",
+    "test:modelsdev": "npm run test:modelsdev -w @oneatlas/backend",
+    "test:resolution": "npm run test:resolution -w @oneatlas/backend",
+    "test:coordinator": "npm run test:coordinator -w @oneatlas/backend",
+    "audit:data-integrity": "npm run audit:data-integrity -w @oneatlas/backend",
+    "audit:provenance": "npm run audit:provenance -w @oneatlas/backend",
+    "audit:conflicts": "npm run audit:conflicts -w @oneatlas/backend",
+    "audit:endpoints": "npm run audit:endpoints -w @oneatlas/backend",
+    "postinstall": "npm run db:generate -w @oneatlas/backend"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
