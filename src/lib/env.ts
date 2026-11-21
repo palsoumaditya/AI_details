@@ -33,6 +33,8 @@ const envSchema = z.object({
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().min(1).max(100))
     .default(10),
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
+  OPENROUTER_MANAGEMENT_KEY: z.string().min(1).optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

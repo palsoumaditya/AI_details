@@ -25,6 +25,7 @@ enum ProviderType {
   CLOUD
   AGGREGATOR
   HOSTING
+  UNKNOWN
 }
 
 enum ModelStatus {
@@ -162,7 +163,8 @@ model Provider {
   updatedAt    DateTime     @updatedAt
 
   // Relationships
-  endpoints    ModelProviderEndpoint[]
+  endpoints      ModelProviderEndpoint[]
+  sourceMappings ProviderSourceMapping[]
 
   @@map("providers")
 }
@@ -183,6 +185,7 @@ model ExternalSource {
 
   // Relationships
   modelMappings    ModelSourceMapping[]
+  providerMappings ProviderSourceMapping[]
   benchmarkResults BenchmarkResult[]
   pricingRecords   PricingRecord[]
   syncRuns         SyncRun[]
@@ -213,6 +216,30 @@ model ModelSourceMapping {
   @@index([modelId])
   @@index([sourceId])
   @@map("model_source_mappings")
+}
+
+// ==========================================
+// EXTERNAL TO CANONICAL PROVIDER MAPPINGS
+// ==========================================
+
+model ProviderSourceMapping {
+  id                 String    @id @default(cuid())
+  providerId         String
+  sourceId           String
+  externalProviderId String
+  externalSlug       String?
+  payloadHash        String?
+  lastFetchedAt      DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  provider Provider       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  source   ExternalSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceId, externalProviderId])
+  @@index([providerId])
+  @@index([sourceId])
+  @@map("provider_source_mappings")
 }
 
 // ==========================================
