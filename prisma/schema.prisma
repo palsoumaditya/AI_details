@@ -1,0 +1,373 @@
+// OneAtlas Database Schema — Production-Grade Data Model
+// Prisma ORM 7 Configuration
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum LabRole {
+  CREATOR
+  PUBLISHER
+  COLLABORATOR
+}
+
+enum ProviderType {
+  DIRECT
+  CLOUD
+  AGGREGATOR
+  HOSTING
+}
+
+enum ModelStatus {
+  ACTIVE
+  DEPRECATED
+  EXPERIMENTAL
+}
+
+enum EndpointStatus {
+  ONLINE
+  OFFLINE
+  DEPRECATED
+  UNKNOWN
+}
+
+enum BenchmarkCategory {
+  REASONING
+  CODING
+  MATH
+  KNOWLEDGE
+  MULTIMODAL
+  SPEED
+  COMPOSITE
+}
+
+enum MetricUnit {
+  PERCENTAGE
+  TOKENS_PER_SEC
+  MILLISECONDS
+  SCORE
+  RAW
+}
+
+enum SyncTriggerType {
+  CRON
+  MANUAL
+}
+
+enum SyncStatus {
+  STARTED
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+// ==========================================
+// AI LABS & RESEARCH ORGANIZATIONS
+// ==========================================
+
+model AiLab {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  website     String?
+  logoUrl     String?
+  description String?
+  country     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Many-to-Many relationship with Model via ModelLab join table
+  models      ModelLab[]
+
+  @@map("ai_labs")
+}
+
+// ==========================================
+// CANONICAL AI MODELS
+// ==========================================
+
+model Model {
+  id               String       @id @default(cuid())
+  slug             String       @unique
+  name             String
+  description      String?
+  releaseDate      DateTime?
+  license          String?
+  architectureType String?
+  isReasoning      Boolean      @default(false)
+  isOpenWeight     Boolean      @default(false)
+  inputModalities  String[]     @default(["text"])
+  outputModalities String[]     @default(["text"])
+  capabilities     Json?
+  contextWindow    Int?
+  maxOutputTokens  Int?
+  status           ModelStatus  @default(ACTIVE)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relationships
+  labs             ModelLab[]
+  endpoints        ModelProviderEndpoint[]
+  sourceMappings   ModelSourceMapping[]
+  benchmarkResults BenchmarkResult[]
+
+  @@index([status])
+  @@index([releaseDate(sort: Desc)])
+  @@index([isReasoning])
+  @@index([isOpenWeight])
+  @@map("models")
+}
+
+// Join table for many-to-many Model <-> AiLab relationship
+model ModelLab {
+  id               String   @id @default(cuid())
+  modelId          String
+  aiLabId          String
+  relationshipType LabRole  @default(CREATOR)
+  createdAt        DateTime @default(now())
+
+  model Model @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  aiLab AiLab @relation(fields: [aiLabId], references: [id], onDelete: Restrict)
+
+  @@unique([modelId, aiLabId, relationshipType])
+  @@index([modelId])
+  @@index([aiLabId])
+  @@map("model_labs")
+}
+
+// ==========================================
+// INFERENCE PROVIDERS (Hosting / Reselling)
+// ==========================================
+
+model Provider {
+  id           String       @id @default(cuid())
+  slug         String       @unique
+  name         String
+  website      String?
+  logoUrl      String?
+  description  String?
+  apiDocUrl    String?
+  providerType ProviderType @default(DIRECT)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relationships
+  endpoints    ModelProviderEndpoint[]
+
+  @@map("providers")
+}
+
+// ==========================================
+// EXTERNAL DATA SOURCES (Ingestion Suppliers)
+// ==========================================
+
+model ExternalSource {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  name             String
+  baseUrl          String?
+  website          String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relationships
+  modelMappings    ModelSourceMapping[]
+  benchmarkResults BenchmarkResult[]
+  pricingRecords   PricingRecord[]
+  syncRuns         SyncRun[]
+  rawSourceRecords RawSourceRecord[]
+
+  @@map("external_sources")
+}
+
+// ==========================================
+// EXTERNAL TO CANONICAL MODEL MAPPINGS
+// ==========================================
+
+model ModelSourceMapping {
+  id              String   @id @default(cuid())
+  modelId         String
+  sourceId        String
+  externalModelId String
+  externalSlug    String?
+  payloadHash     String?
+  lastFetchedAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  model  Model          @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  source ExternalSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceId, externalModelId])
+  @@index([modelId])
+  @@index([sourceId])
+  @@map("model_source_mappings")
+}
+
+// ==========================================
+// PROVIDER-SPECIFIC MODEL ENDPOINTS
+// ==========================================
+
+model ModelProviderEndpoint {
+  id              String         @id @default(cuid())
+  modelId         String
+  providerId      String
+  endpointKey     String
+  name            String?
+  contextWindow   Int?
+  maxOutputTokens Int?
+  status          EndpointStatus @default(ONLINE)
+  isModerated     Boolean        @default(false)
+  lastSeenAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  model            Model             @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  provider         Provider          @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  pricingRecords   PricingRecord[]
+  benchmarkResults BenchmarkResult[]
+
+  @@unique([modelId, providerId, endpointKey])
+  @@index([modelId])
+  @@index([providerId])
+  @@index([status])
+  @@map("model_provider_endpoints")
+}
+
+// ==========================================
+// HISTORICAL PRICING RECORDS (Immutable snapshots)
+// ==========================================
+
+model PricingRecord {
+  id                       String   @id @default(cuid())
+  modelProviderEndpointId  String
+  sourceId                 String?
+  inputPricePerMillion     Decimal? @db.Decimal(20, 10)
+  outputPricePerMillion    Decimal? @db.Decimal(20, 10)
+  cacheReadPricePerMillion Decimal? @db.Decimal(20, 10)
+  cacheWritePricePerMillion Decimal? @db.Decimal(20, 10)
+  currency                 String   @default("USD")
+  pricingUnit              String   @default("1M_TOKENS")
+  observedAt               DateTime @default(now())
+  createdAt                DateTime @default(now())
+
+  endpoint ModelProviderEndpoint @relation(fields: [modelProviderEndpointId], references: [id], onDelete: Cascade)
+  source   ExternalSource?       @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([modelProviderEndpointId, observedAt(sort: Desc)])
+  @@index([sourceId, observedAt(sort: Desc)])
+  @@map("pricing_records")
+}
+
+// ==========================================
+// BENCHMARKS & EVALUATION DEFINITIONS
+// ==========================================
+
+model Benchmark {
+  id             String            @id @default(cuid())
+  slug           String
+  name           String
+  version        String            @default("1.0")
+  category       BenchmarkCategory @default(REASONING)
+  metricName     String
+  metricUnit     MetricUnit        @default(PERCENTAGE)
+  higherIsBetter Boolean           @default(true)
+  description    String?
+  createdAt      DateTime          @default(now())
+
+  results        BenchmarkResult[]
+
+  @@unique([slug, version])
+  @@index([category])
+  @@map("benchmarks")
+}
+
+// ==========================================
+// INDIVIDUAL BENCHMARK EVALUATIONS
+// ==========================================
+
+model BenchmarkResult {
+  id                 String    @id @default(cuid())
+  modelId            String
+  benchmarkId        String
+  sourceId           String
+  providerEndpointId String?
+  metricValue        Decimal   @db.Decimal(12, 4)
+  evaluationDate     DateTime?
+  observedAt         DateTime  @default(now())
+  modelVersion       String?
+  sampleSize         Int?
+  evaluationConfig   Json?
+  sourceUrl          String?
+  notes              String?
+
+  model            Model                  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  benchmark        Benchmark              @relation(fields: [benchmarkId], references: [id], onDelete: Restrict)
+  source           ExternalSource         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  providerEndpoint ModelProviderEndpoint? @relation(fields: [providerEndpointId], references: [id], onDelete: SetNull)
+
+  @@index([benchmarkId, metricValue(sort: Desc)])
+  @@index([modelId, benchmarkId])
+  @@index([sourceId, evaluationDate(sort: Desc)])
+  @@map("benchmark_results")
+}
+
+// ==========================================
+// DATA SYNCHRONIZATION AUDIT RUNS
+// ==========================================
+
+model SyncRun {
+  id             String          @id @default(cuid())
+  sourceId       String
+  triggerType    SyncTriggerType @default(CRON)
+  status         SyncStatus      @default(STARTED)
+  itemsProcessed Int             @default(0)
+  itemsInserted  Int             @default(0)
+  itemsUpdated   Int             @default(0)
+  itemsSkipped   Int             @default(0)
+  errorSummary   String?
+  errorDetails   Json?
+  startedAt      DateTime        @default(now())
+  completedAt    DateTime?
+
+  source         ExternalSource    @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  rawRecords     RawSourceRecord[]
+
+  @@index([sourceId, startedAt(sort: Desc)])
+  @@index([status])
+  @@map("sync_runs")
+}
+
+// ==========================================
+// RAW EXTERNAL SOURCE SNAPSHOTS (Provenance)
+// ==========================================
+
+model RawSourceRecord {
+  id          String   @id @default(cuid())
+  sourceId    String
+  syncRunId   String?
+  entityType  String
+  externalId  String
+  payload     Json
+  payloadHash String
+  fetchedAt   DateTime @default(now())
+
+  source  ExternalSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  syncRun SyncRun?        @relation(fields: [syncRunId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceId, entityType, externalId, payloadHash])
+  @@index([sourceId, fetchedAt(sort: Desc)])
+  @@index([syncRunId])
+  @@map("raw_source_records")
+}
