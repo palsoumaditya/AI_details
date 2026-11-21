@@ -123,14 +123,14 @@ export class OpenRouterClient {
   }
 
   /**
-   * Fetch a single page of models from the catalog.
+   * Fetch a single page of models from the catalog with output_modalities=all.
    */
   async fetchModelsPage(offset = 0, limit = 1000): Promise<{
     models: OpenRouterRawModelItem[];
     totalCount?: number;
   }> {
     const response = await this.fetchWithRetry("/models", {
-      params: { offset, limit },
+      params: { offset, limit, output_modalities: "all" },
     });
 
     if (!response.ok) {
@@ -157,25 +157,37 @@ export class OpenRouterClient {
   }
 
   /**
-   * Fetch all models using documented offset/limit pagination.
+   * Fetch all models using documented offset/limit pagination and output_modalities=all.
+   * Includes loop detection and duplicate model ID deduplication across pages.
    */
   async fetchAllModels(options: { maxPages?: number; limit?: number } = {}): Promise<OpenRouterRawModelItem[]> {
     const limit = options.limit ?? 1000;
-    const maxPages = options.maxPages ?? 10;
+    const maxPages = options.maxPages ?? 50;
     const allModels: OpenRouterRawModelItem[] = [];
+    const seenIds = new Set<string>();
 
     let offset = 0;
     for (let page = 0; page < maxPages; page++) {
       const pageResult = await this.fetchModelsPage(offset, limit);
-      allModels.push(...pageResult.models);
 
-      // If page returned fewer items than limit or reached totalCount, we're done
-      if (
-        pageResult.models.length < limit ||
-        (pageResult.totalCount !== undefined && allModels.length >= pageResult.totalCount)
-      ) {
+      let newInPage = 0;
+      for (const model of pageResult.models) {
+        if (!seenIds.has(model.id)) {
+          seenIds.add(model.id);
+          allModels.push(model);
+          newInPage++;
+        }
+      }
+
+      // If page returned fewer items than limit or no new models, termination reached
+      if (pageResult.models.length < limit || newInPage === 0) {
         break;
       }
+
+      if (pageResult.totalCount !== undefined && allModels.length >= pageResult.totalCount) {
+        break;
+      }
+
       offset += limit;
     }
 

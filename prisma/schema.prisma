@@ -71,6 +71,14 @@ enum SyncStatus {
   PARTIAL
 }
 
+enum BatchStatus {
+  STARTED
+  COMPLETED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
 enum CandidateStatus {
   PENDING
   APPROVED
@@ -436,11 +444,34 @@ model BenchmarkResult {
 }
 
 // ==========================================
+// PARENT DATA SYNCHRONIZATION BATCHES (Orchestrator)
+// ==========================================
+
+model SyncBatch {
+  id               String          @id @default(cuid())
+  triggerType      SyncTriggerType @default(MANUAL)
+  status           BatchStatus     @default(STARTED)
+  requestedSources String[]
+  startedAt        DateTime        @default(now())
+  completedAt      DateTime?
+  summary          Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  runs             SyncRun[]
+
+  @@index([status])
+  @@index([startedAt(sort: Desc)])
+  @@map("sync_batches")
+}
+
+// ==========================================
 // DATA SYNCHRONIZATION AUDIT RUNS
 // ==========================================
 
 model SyncRun {
   id             String          @id @default(cuid())
+  batchId        String?
   sourceId       String
   triggerType    SyncTriggerType @default(CRON)
   status         SyncStatus      @default(STARTED)
@@ -450,15 +481,18 @@ model SyncRun {
   itemsUnchanged Int             @default(0)
   itemsSkipped   Int             @default(0)
   itemsFailed    Int             @default(0)
+  itemsUnresolved Int            @default(0)
   errorSummary   String?
   errorDetails   Json?
   startedAt      DateTime        @default(now())
   completedAt    DateTime?
 
+  batch          SyncBatch?        @relation(fields: [batchId], references: [id], onDelete: SetNull)
   source         ExternalSource    @relation(fields: [sourceId], references: [id], onDelete: Restrict)
   rawRecords     RawSourceRecord[]
 
   @@index([sourceId, startedAt(sort: Desc)])
+  @@index([batchId])
   @@index([status])
   @@map("sync_runs")
 }

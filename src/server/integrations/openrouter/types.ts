@@ -149,8 +149,12 @@ export interface NormalizedEndpoint {
 }
 
 export interface SyncOptions {
+  batchId?: string;
   dryRun?: boolean;
   limit?: number;
+  modelsOnly?: boolean;
+  providersOnly?: boolean;
+  endpointsOnly?: boolean;
   includeEndpoints?: boolean;
   endpointModelLimit?: number;
 }

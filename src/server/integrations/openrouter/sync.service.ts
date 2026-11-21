@@ -77,6 +77,7 @@ export class OpenRouterSyncService {
     if (!dryRun) {
       syncRun = await this.prisma.syncRun.create({
         data: {
+          batchId: options.batchId || null,
           sourceId,
           triggerType: "MANUAL",
           status: "STARTED",
@@ -89,135 +90,149 @@ export class OpenRouterSyncService {
     }
 
     try {
+      const shouldSyncProviders = !options.modelsOnly && !options.endpointsOnly;
+      const shouldSyncModels = !options.providersOnly && !options.endpointsOnly;
+
       // 3. Fetch and Ingest Provider Catalog
-      console.log("[OpenRouterSync] Fetching provider directory from OpenRouter...");
-      const rawProviders = await this.client.fetchProviders();
-      result.providersProcessed = rawProviders.length;
-      console.log(`[OpenRouterSync] Fetched ${rawProviders.length} providers.`);
-
-      // Also ensure standard OpenRouter provider exists
       let openRouterProviderId: string | null = null;
-      if (!dryRun) {
-        const orProvider = await this.prisma.provider.upsert({
-          where: { slug: "openrouter-provider" },
-          update: { name: "OpenRouter", providerType: "AGGREGATOR" },
-          create: {
-            slug: "openrouter-provider",
-            name: "OpenRouter",
-            providerType: "AGGREGATOR",
-            website: "https://openrouter.ai",
-          },
-        });
-        openRouterProviderId = orProvider.id;
-      }
+      if (shouldSyncProviders) {
+        console.log("[OpenRouterSync] Fetching provider directory from OpenRouter...");
+        const rawProviders = await this.client.fetchProviders();
+        result.providersProcessed = rawProviders.length;
+        console.log(`[OpenRouterSync] Fetched ${rawProviders.length} providers.`);
 
-      for (const rawProv of rawProviders) {
-        const normProv = normalizeProvider(rawProv);
-
+        // Also ensure standard OpenRouter provider exists
         if (!dryRun) {
-          const { status } = await this.providerService.resolveOrCreateProvider(
-            sourceId,
-            normProv
-          );
-
-          if (status === "inserted") result.providersInserted++;
-          else if (status === "updated") result.providersUpdated++;
-          else result.providersUnchanged++;
-
-          // Record raw provenance snapshot if changed
-          const rawCreated = await this.persistRawRecordIfNew(
-            sourceId,
-            syncRun?.id,
-            "provider",
-            normProv.externalId,
-            normProv.rawPayload,
-            normProv.payloadHash
-          );
-          if (rawCreated) result.rawRecordsCreated++;
-        } else {
-          result.providersInserted++;
+          const orProvider = await this.prisma.provider.upsert({
+            where: { slug: "openrouter-provider" },
+            update: { name: "OpenRouter", providerType: "AGGREGATOR" },
+            create: {
+              slug: "openrouter-provider",
+              name: "OpenRouter",
+              providerType: "AGGREGATOR",
+              website: "https://openrouter.ai",
+            },
+          });
+          openRouterProviderId = orProvider.id;
         }
+
+        for (const rawProv of rawProviders) {
+          const normProv = normalizeProvider(rawProv);
+
+          if (!dryRun) {
+            const { status } = await this.providerService.resolveOrCreateProvider(
+              sourceId,
+              normProv
+            );
+
+            if (status === "inserted") result.providersInserted++;
+            else if (status === "updated") result.providersUpdated++;
+            else result.providersUnchanged++;
+
+            // Record raw provenance snapshot if changed
+            const rawCreated = await this.persistRawRecordIfNew(
+              sourceId,
+              syncRun?.id,
+              "provider",
+              normProv.externalId,
+              normProv.rawPayload,
+              normProv.payloadHash
+            );
+            if (rawCreated) result.rawRecordsCreated++;
+          } else {
+            result.providersInserted++;
+          }
+        }
+      } else if (!dryRun) {
+        const orProvider = await this.prisma.provider.findUnique({
+          where: { slug: "openrouter-provider" },
+        });
+        openRouterProviderId = orProvider?.id || null;
       }
 
       // 4. Fetch and Ingest Model Catalog
-      console.log("[OpenRouterSync] Fetching models catalog from OpenRouter...");
-      const rawModels = await this.client.fetchAllModels({
-        limit: limit ? Math.min(limit, 1000) : 1000,
-        maxPages: limit ? Math.ceil(limit / 1000) : 10,
-      });
+      let modelsToProcess: OpenRouterRawModelItem[] = [];
+      if (shouldSyncModels) {
+        console.log("[OpenRouterSync] Fetching models catalog from OpenRouter...");
+        const rawModels = await this.client.fetchAllModels({
+          limit: limit ? Math.min(limit, 1000) : 1000,
+          maxPages: limit ? Math.ceil(limit / 1000) : 10,
+        });
 
-      const modelsToProcess = limit ? rawModels.slice(0, limit) : rawModels;
-      result.modelsProcessed = modelsToProcess.length;
-      console.log(`[OpenRouterSync] Fetched ${modelsToProcess.length} models for processing.`);
+        modelsToProcess = limit ? rawModels.slice(0, limit) : rawModels;
+        result.modelsProcessed = modelsToProcess.length;
+        console.log(`[OpenRouterSync] Fetched ${modelsToProcess.length} models for processing.`);
 
-      for (const rawModel of modelsToProcess) {
-        const normModel = normalizeModel(rawModel);
+        for (const rawModel of modelsToProcess) {
+          const normModel = normalizeModel(rawModel);
 
-        if (!dryRun) {
-          const { model, status } = await this.modelService.resolveOrCreateModel(
-            sourceId,
-            normModel
-          );
+          if (!dryRun) {
+            const { model, status } = await this.modelService.resolveOrCreateModel(
+              sourceId,
+              normModel
+            );
 
-          if (status === "inserted") result.modelsInserted++;
-          else if (status === "updated") result.modelsUpdated++;
-          else result.modelsUnchanged++;
+            if (status === "inserted") result.modelsInserted++;
+            else if (status === "updated") result.modelsUpdated++;
+            else result.modelsUnchanged++;
 
-          // Record raw model provenance snapshot if changed
-          const rawCreated = await this.persistRawRecordIfNew(
-            sourceId,
-            syncRun?.id,
-            "model",
-            normModel.externalId,
-            normModel.rawPayload,
-            normModel.payloadHash
-          );
-          if (rawCreated) result.rawRecordsCreated++;
+            // Record raw model provenance snapshot if changed
+            const rawCreated = await this.persistRawRecordIfNew(
+              sourceId,
+              syncRun?.id,
+              "model",
+              normModel.externalId,
+              normModel.rawPayload,
+              normModel.payloadHash
+            );
+            if (rawCreated) result.rawRecordsCreated++;
 
-          // Map catalog-level top_provider / gateway pricing to OpenRouter Provider endpoint
-          if (openRouterProviderId && normModel.pricing) {
-            const gatewayEndpointKey = `openrouter/${normModel.externalId}`;
-            const normGatewayEndpoint = {
-              endpointKey: gatewayEndpointKey,
-              name: `OpenRouter | ${normModel.name}`,
-              providerExternalSlug: "openrouter",
-              contextWindow: normModel.contextWindow,
-              maxOutputTokens: null,
-              inputModalities: normModel.inputModalities,
-              outputModalities: normModel.outputModalities,
-              status: "ONLINE" as const,
-              isModerated: false,
-              pricing: normModel.pricing,
-              rawPayload: normModel.rawPayload,
-              payloadHash: normModel.payloadHash,
-            };
+            // Map catalog-level top_provider / gateway pricing to OpenRouter Provider endpoint
+            if (openRouterProviderId && normModel.pricing) {
+              const gatewayEndpointKey = `openrouter/${normModel.externalId}`;
+              const normGatewayEndpoint = {
+                endpointKey: gatewayEndpointKey,
+                name: `OpenRouter | ${normModel.name}`,
+                providerExternalSlug: "openrouter",
+                contextWindow: normModel.contextWindow,
+                maxOutputTokens: null,
+                inputModalities: normModel.inputModalities,
+                outputModalities: normModel.outputModalities,
+                status: "ONLINE" as const,
+                isModerated: false,
+                pricing: normModel.pricing,
+                rawPayload: normModel.rawPayload,
+                payloadHash: normModel.payloadHash,
+              };
 
-            const { status: epStatus, priceRecorded } =
-              await this.endpointService.resolveOrCreateEndpoint(
-                model.id,
-                openRouterProviderId,
-                sourceId,
-                normGatewayEndpoint
-              );
+              const { status: epStatus, priceRecorded } =
+                await this.endpointService.resolveOrCreateEndpoint(
+                  model.id,
+                  openRouterProviderId,
+                  sourceId,
+                  normGatewayEndpoint
+                );
 
-            result.endpointsProcessed++;
-            if (epStatus === "inserted") result.endpointsInserted++;
-            else if (epStatus === "updated") result.endpointsUpdated++;
-            else result.endpointsUnchanged++;
-            if (priceRecorded) result.pricingRecordsCreated++;
-          }
-        } else {
-          result.modelsInserted++;
-          if (normModel.pricing) {
-            result.endpointsProcessed++;
-            result.endpointsInserted++;
-            result.pricingRecordsCreated++;
+              result.endpointsProcessed++;
+              if (epStatus === "inserted") result.endpointsInserted++;
+              else if (epStatus === "updated") result.endpointsUpdated++;
+              else result.endpointsUnchanged++;
+              if (priceRecorded) result.pricingRecordsCreated++;
+            }
+          } else {
+            result.modelsInserted++;
+            if (normModel.pricing) {
+              result.endpointsProcessed++;
+              result.endpointsInserted++;
+              result.pricingRecordsCreated++;
+            }
           }
         }
       }
 
       // 5. Optional Detailed Endpoints Ingestion (requires management permissions)
-      if (includeEndpoints && !dryRun) {
+      const shouldSyncEndpoints = !options.providersOnly && !options.modelsOnly;
+      if (shouldSyncEndpoints && includeEndpoints && !dryRun) {
         console.log(
           `[OpenRouterSync] Fetching detailed provider endpoints for top ${endpointModelLimit} models...`
         );

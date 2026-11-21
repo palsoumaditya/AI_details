@@ -87,6 +87,7 @@ export class ModelsDevSyncService {
 
       const syncRun = await this.prisma.syncRun.create({
         data: {
+          batchId: options.batchId || null,
           sourceId,
           triggerType: "MANUAL",
           status: "STARTED",

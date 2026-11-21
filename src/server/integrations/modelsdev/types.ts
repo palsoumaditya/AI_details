@@ -165,6 +165,7 @@ export interface NormalizedEndpoint {
 }
 
 export interface ModelsDevSyncOptions {
+  batchId?: string;
   dryRun?: boolean;
   limit?: number;
   modelsOnly?: boolean;
