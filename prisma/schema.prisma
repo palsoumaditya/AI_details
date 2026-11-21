@@ -79,6 +79,19 @@ enum CandidateStatus {
   STALE
 }
 
+enum ConflictSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum ConflictStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+  NEEDS_REVIEW
+}
+
 // ==========================================
 // AI LABS & RESEARCH ORGANIZATIONS
 // ==========================================
@@ -114,8 +127,8 @@ model Model {
   knowledgeCutoff  String?
   license          String?
   architectureType String?
-  isReasoning      Boolean      @default(false)
-  isOpenWeight     Boolean      @default(false)
+  isReasoning      Boolean?
+  isOpenWeight     Boolean?
   inputModalities  String[]     @default(["text"])
   outputModalities String[]     @default(["text"])
   capabilities     Json?
@@ -204,6 +217,9 @@ model ExternalSource {
   syncRuns             SyncRun[]
   rawSourceRecords     RawSourceRecord[]
   resolutionCandidates ModelResolutionCandidate[]
+  provenanceRecords    FieldProvenance[]
+  conflictsAsSourceA   DataConflict[]             @relation("ConflictSourceA")
+  conflictsAsSourceB   DataConflict[]             @relation("ConflictSourceB")
 
   @@map("external_sources")
 }
@@ -319,8 +335,10 @@ model ModelProviderEndpoint {
   name            String?
   contextWindow   Int?
   maxOutputTokens Int?
-  capabilities    Json?
-  status          EndpointStatus @default(ONLINE)
+  capabilities     Json?
+  inputModalities  String[]       @default([])
+  outputModalities String[]       @default([])
+  status           EndpointStatus @default(ONLINE)
   isModerated     Boolean        @default(false)
   lastSeenAt      DateTime?
   createdAt       DateTime       @default(now())
@@ -461,9 +479,75 @@ model RawSourceRecord {
 
   source  ExternalSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
   syncRun SyncRun?        @relation(fields: [syncRunId], references: [id], onDelete: SetNull)
+  provenanceRecords FieldProvenance[]
+  conflictsAsRawA   DataConflict[]    @relation("ConflictRawA")
+  conflictsAsRawB   DataConflict[]    @relation("ConflictRawB")
 
   @@unique([sourceId, entityType, externalId, payloadHash])
   @@index([sourceId, fetchedAt(sort: Desc)])
   @@index([syncRunId])
   @@map("raw_source_records")
+}
+
+// ==========================================
+// DURABLE FIELD PROVENANCE
+// ==========================================
+
+model FieldProvenance {
+  id                String    @id @default(cuid())
+  entityType        String    // "MODEL" | "ENDPOINT" | "PROVIDER"
+  entityId          String
+  fieldKey          String
+  sourceId          String
+  sourceExternalId  String?
+  rawSourceRecordId String?
+  selectedValue     Json
+  confidence        Float?
+  selectedAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  source    ExternalSource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  rawRecord RawSourceRecord? @relation(fields: [rawSourceRecordId], references: [id], onDelete: SetNull)
+
+  @@unique([entityType, entityId, fieldKey])
+  @@index([entityType, entityId])
+  @@index([sourceId])
+  @@map("field_provenance")
+}
+
+// ==========================================
+// PERSISTENT DATA CONFLICT RECORDS
+// ==========================================
+
+model DataConflict {
+  id               String           @id @default(cuid())
+  entityType       String           // "MODEL" | "ENDPOINT" | "PROVIDER"
+  entityId         String
+  fieldKey         String
+  severity         ConflictSeverity @default(WARNING)
+  status           ConflictStatus   @default(OPEN)
+  sourceAId        String
+  sourceBId        String
+  rawRecordAId     String?
+  rawRecordBId     String?
+  observedValueA   Json
+  observedValueB   Json
+  selectedSourceId String?
+  resolutionNotes  String?
+  detectedAt       DateTime         @default(now())
+  resolvedAt       DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  sourceA    ExternalSource   @relation("ConflictSourceA", fields: [sourceAId], references: [id], onDelete: Restrict)
+  sourceB    ExternalSource   @relation("ConflictSourceB", fields: [sourceBId], references: [id], onDelete: Restrict)
+  rawRecordA RawSourceRecord? @relation("ConflictRawA", fields: [rawRecordAId], references: [id], onDelete: SetNull)
+  rawRecordB RawSourceRecord? @relation("ConflictRawB", fields: [rawRecordBId], references: [id], onDelete: SetNull)
+
+  @@unique([entityType, entityId, fieldKey, sourceAId, sourceBId])
+  @@index([status])
+  @@index([severity])
+  @@index([entityType, entityId])
+  @@map("data_conflicts")
 }

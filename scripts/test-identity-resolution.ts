@@ -10,12 +10,15 @@ import {
   DecisionEngine,
   ConflictDetector,
   ProvenanceEngine,
+  ProvenanceService,
+  ConflictService,
   ProviderResolver,
   EndpointResolver,
   ReviewService,
   calculateConfidenceScore,
   createEvidence,
 } from "../src/server/domain/identity-resolution";
+import { EndpointService as OpenRouterEndpointService } from "../src/server/integrations/openrouter/endpoint.service";
 
 /**
  * Phase 3C Comprehensive Identity Resolution & Reconciliation Test Suite
@@ -485,6 +488,210 @@ async function runTests() {
       canonicalModel.id
     );
     assert(resEp2.endpointSyncStatus === "unchanged", "Identical endpoint returns status 'unchanged'");
+
+    // H. Field Provenance Service
+    console.log("   - Testing Durable Field Provenance Persistence & Auditability...");
+    const provenanceService = new ProvenanceService(prisma);
+
+    const prov1 = await provenanceService.recordProvenance({
+      entityType: "MODEL",
+      entityId: canonicalModel.id,
+      fieldKey: "contextWindow",
+      sourceId: source.id,
+      sourceExternalId: `exact-ext-${testSuffix}`,
+      selectedValue: 128000,
+      confidence: 1.0,
+    });
+    assert(prov1.fieldKey === "contextWindow", "Recorded field provenance for canonical model field");
+    assert(Number(prov1.selectedValue) === 128000, "Field provenance preserves selected scalar value");
+
+    // Upsert same field provenance must update existing row, not duplicate
+    const prov2 = await provenanceService.recordProvenance({
+      entityType: "MODEL",
+      entityId: canonicalModel.id,
+      fieldKey: "contextWindow",
+      sourceId: source.id,
+      sourceExternalId: `exact-ext-${testSuffix}`,
+      selectedValue: 128000,
+      confidence: 1.0,
+    });
+    assert(prov1.id === prov2.id, "Field provenance upsert is idempotent (updates existing row)");
+
+    const modelProvList = await provenanceService.getEntityProvenance("MODEL", canonicalModel.id);
+    assert(modelProvList.length >= 1, "Retrieved entity field provenance records successfully");
+
+    // I. Data Conflict Service
+    console.log("   - Testing Persistent Data Conflict Tracking & Resolution Lifecycle...");
+    const conflictService = new ConflictService(prisma);
+
+    const conflict1 = await conflictService.recordConflict({
+      entityType: "MODEL",
+      entityId: canonicalModel.id,
+      fieldKey: "contextWindow",
+      severity: "WARNING",
+      sourceAId: source.id,
+      sourceBId: source.id,
+      observedValueA: 128000,
+      observedValueB: 200000,
+      resolutionNotes: "Discrepancy in reported context lengths",
+    });
+    assert(conflict1.severity === "WARNING", "Data conflict recorded with WARNING severity");
+    assert(conflict1.status === "OPEN", "Initial conflict status is OPEN");
+
+    // Recording same conflict again updates existing record (no duplicate rows)
+    const conflictDuplicate = await conflictService.recordConflict({
+      entityType: "MODEL",
+      entityId: canonicalModel.id,
+      fieldKey: "contextWindow",
+      severity: "WARNING",
+      sourceAId: source.id,
+      sourceBId: source.id,
+      observedValueA: 128000,
+      observedValueB: 200000,
+    });
+    assert(conflictDuplicate.id === conflict1.id, "Identical conflict deduplicated to existing row");
+
+    // Resolve conflict
+    const resolvedConflict = await conflictService.resolveConflict(
+      conflict1.id,
+      "Resolved by administrator preference"
+    );
+    assert(resolvedConflict.status === "RESOLVED", "Conflict transition to RESOLVED succeeds");
+    assert(
+      Boolean(resolvedConflict.resolutionNotes?.includes("administrator")),
+      "Resolution notes recorded"
+    );
+
+    // J. Non-Additive Boolean Metadata Reconciliation & Nullability
+    console.log("   - Testing Non-Additive Boolean Reconciliation & Nullable Semantics...");
+    const provEngine = new ProvenanceEngine();
+
+    // Canonical model has isOpenWeight: false (from Models.dev)
+    const mockCanonical = {
+      id: "mock-model",
+      name: "Mock Model",
+      slug: "mock-model",
+      family: "mock",
+      isOpenWeight: false,
+      isReasoning: false,
+      inputModalities: ["text"],
+      outputModalities: ["text"],
+      contextWindow: 128000,
+      maxOutputTokens: 4096,
+      releaseDate: null,
+      knowledgeCutoff: null,
+      license: null,
+      description: null,
+      architectureType: null,
+      creatorLabId: null,
+      isActive: true,
+      capabilities: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    // Incoming OpenRouter offering claims isOpenWeight: true (additive union attempt)
+    const incomingOR = {
+      sourceId: source.id,
+      externalModelId: "or-model-1",
+      name: "Mock Model",
+      slug: "mock-model",
+      isOpenWeight: true,
+      isReasoning: true,
+      inputModalities: ["text"],
+      outputModalities: ["text"],
+    };
+
+    const reconResult = provEngine.reconcileModelFields(
+      mockCanonical as unknown as import("@/generated/prisma/client").Model,
+      incomingOR as unknown as import("../src/server/domain/identity-resolution").ExternalModelInput,
+      "openrouter"
+    );
+
+    assert(
+      reconResult.fields.isOpenWeight === false,
+      "Non-authoritative source CANNOT flip authoritative isOpenWeight=false to true (no blind OR union)"
+    );
+    assert(
+      reconResult.conflicts.some((c) => c.field === "isOpenWeight"),
+      "Metadata conflict is flagged when sources disagree on isOpenWeight"
+    );
+
+    // When boolean is null on canonical and incoming has no boolean, it remains null
+    const mockCanonicalUnknown = {
+      ...mockCanonical,
+      isOpenWeight: null,
+      isReasoning: null,
+    };
+    const incomingUnknown = {
+      sourceId: source.id,
+      externalModelId: "unknown-model",
+      name: "Unknown Model",
+      slug: "unknown-model",
+    };
+    const unknownRecon = provEngine.reconcileModelFields(
+      mockCanonicalUnknown as unknown as import("@/generated/prisma/client").Model,
+      incomingUnknown as unknown as import("../src/server/domain/identity-resolution").ExternalModelInput,
+      "unknown-source"
+    );
+    assert(
+      unknownRecon.fields.isOpenWeight === null,
+      "Unknown isOpenWeight defaults to null (not coerced to false)"
+    );
+    assert(
+      unknownRecon.fields.isReasoning === null,
+      "Unknown isReasoning defaults to null (not coerced to false)"
+    );
+
+    // K. OpenRouter Endpoint Service Source Mapping & Modalities
+    console.log("   - Testing OpenRouter EndpointService Source Mapping Persistence...");
+    const orEndpointService = new OpenRouterEndpointService(prisma);
+
+    const orNormEndpoint = {
+      endpointKey: `openrouter/test-ep-${testSuffix}`,
+      name: "OpenRouter Test Endpoint",
+      providerExternalSlug: "openrouter",
+      contextWindow: 128000,
+      maxOutputTokens: 4096,
+      inputModalities: ["text", "image"],
+      outputModalities: ["text"],
+      status: "ONLINE" as const,
+      isModerated: false,
+      pricing: null,
+      rawPayload: { test: true },
+      payloadHash: "or-ep-hash-1",
+    };
+
+    const orRes1 = await orEndpointService.resolveOrCreateEndpoint(
+      canonicalModel.id,
+      resP1.provider.id,
+      source.id,
+      orNormEndpoint
+    );
+    assert(orRes1.status === "inserted", "First OpenRouter endpoint import returns 'inserted'");
+
+    const orMapping = await prisma.endpointSourceMapping.findUnique({
+      where: {
+        sourceId_externalEndpointId: {
+          sourceId: source.id,
+          externalEndpointId: `openrouter/test-ep-${testSuffix}`,
+        },
+      },
+    });
+    assert(orMapping !== null, "OpenRouter endpoint creates durable EndpointSourceMapping");
+    assert(
+      orRes1.endpoint.inputModalities.includes("image"),
+      "Endpoint preserves provider-specific input modalities ('image')"
+    );
+
+    // Second run with same hash -> unchanged
+    const orRes2 = await orEndpointService.resolveOrCreateEndpoint(
+      canonicalModel.id,
+      resP1.provider.id,
+      source.id,
+      orNormEndpoint
+    );
+    assert(orRes2.status === "unchanged", "Repeated OpenRouter endpoint import returns 'unchanged'");
   } finally {
     // Clean up isolated test entities
     if (testCandidateId) {
@@ -493,6 +700,12 @@ async function runTests() {
       }).catch(() => {});
     }
     if (testModelId) {
+      await prisma.fieldProvenance.deleteMany({
+        where: { entityId: testModelId },
+      }).catch(() => {});
+      await prisma.dataConflict.deleteMany({
+        where: { entityId: testModelId },
+      }).catch(() => {});
       await prisma.model.deleteMany({
         where: { id: testModelId },
       }).catch(() => {});

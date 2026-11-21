@@ -9,6 +9,8 @@ export * from "./candidate-ranker";
 export * from "./decision-engine";
 export * from "./conflict-detector";
 export * from "./provenance";
+export * from "./provenance.service";
+export * from "./conflict.service";
 export * from "./provider-resolver";
 export * from "./endpoint-resolver";
 export * from "./model-resolver";

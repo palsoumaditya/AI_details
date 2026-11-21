@@ -2,6 +2,8 @@ import { PrismaClient, Prisma, ModelProviderEndpoint } from "@/generated/prisma/
 import { PricingService } from "./pricing.service";
 import type { NormalizedEndpoint } from "./types";
 
+export type EndpointSyncStatus = "inserted" | "updated" | "unchanged";
+
 /**
  * Service for managing provider-specific model endpoints and linking pricing snapshots.
  */
@@ -13,7 +15,8 @@ export class EndpointService {
   }
 
   /**
-   * Upserts ModelProviderEndpoint and delegates pricing record persistence.
+   * Upserts ModelProviderEndpoint, ensures EndpointSourceMapping exists,
+   * detects fine-grained changes, and delegates pricing record persistence.
    */
   async resolveOrCreateEndpoint(
     modelId: string,
@@ -21,11 +24,15 @@ export class EndpointService {
     sourceId: string,
     norm: NormalizedEndpoint,
     tx?: Prisma.TransactionClient
-  ): Promise<{ endpoint: ModelProviderEndpoint; isNew: boolean; priceRecorded: boolean }> {
+  ): Promise<{
+    endpoint: ModelProviderEndpoint;
+    status: EndpointSyncStatus;
+    isNew: boolean;
+    priceRecorded: boolean;
+  }> {
     const db = tx || this.prisma;
 
-    let isNew = false;
-    let endpoint = await db.modelProviderEndpoint.findUnique({
+    const existingEndpoint = await db.modelProviderEndpoint.findUnique({
       where: {
         modelId_providerId_endpointKey: {
           modelId,
@@ -33,9 +40,20 @@ export class EndpointService {
           endpointKey: norm.endpointKey,
         },
       },
+      include: {
+        sourceMappings: {
+          where: { sourceId },
+        },
+      },
     });
 
-    if (!endpoint) {
+    let endpoint: ModelProviderEndpoint;
+    let status: EndpointSyncStatus = "unchanged";
+
+    const inputModalities = norm.inputModalities || [];
+    const outputModalities = norm.outputModalities || [];
+
+    if (!existingEndpoint) {
       endpoint = await db.modelProviderEndpoint.create({
         data: {
           modelId,
@@ -44,20 +62,89 @@ export class EndpointService {
           name: norm.name,
           contextWindow: norm.contextWindow,
           maxOutputTokens: norm.maxOutputTokens,
+          inputModalities,
+          outputModalities,
           status: norm.status,
           isModerated: norm.isModerated,
           lastSeenAt: new Date(),
+          sourceMappings: {
+            create: {
+              sourceId,
+              externalEndpointId: norm.endpointKey,
+              payloadHash: norm.payloadHash,
+              lastFetchedAt: new Date(),
+            },
+          },
         },
       });
-      isNew = true;
+      status = "inserted";
     } else {
-      endpoint = await db.modelProviderEndpoint.update({
-        where: { id: endpoint.id },
-        data: {
-          contextWindow: norm.contextWindow ?? endpoint.contextWindow,
-          maxOutputTokens: norm.maxOutputTokens ?? endpoint.maxOutputTokens,
-          status: norm.status,
-          lastSeenAt: new Date(),
+      const hasMapping = existingEndpoint.sourceMappings.length > 0;
+      const mappingHash = hasMapping ? existingEndpoint.sourceMappings[0].payloadHash : null;
+
+      const isContextChanged =
+        norm.contextWindow !== null && existingEndpoint.contextWindow !== norm.contextWindow;
+      const isMaxOutputChanged =
+        norm.maxOutputTokens !== null &&
+        existingEndpoint.maxOutputTokens !== norm.maxOutputTokens;
+      const isStatusChanged = existingEndpoint.status !== norm.status;
+      const isModeratedChanged = existingEndpoint.isModerated !== norm.isModerated;
+      const isModalitiesChanged =
+        (inputModalities.length > 0 &&
+          JSON.stringify(existingEndpoint.inputModalities) !== JSON.stringify(inputModalities)) ||
+        (outputModalities.length > 0 &&
+          JSON.stringify(existingEndpoint.outputModalities) !== JSON.stringify(outputModalities));
+      const isHashChanged = hasMapping && mappingHash !== norm.payloadHash;
+
+      if (
+        !isContextChanged &&
+        !isMaxOutputChanged &&
+        !isStatusChanged &&
+        !isModeratedChanged &&
+        !isModalitiesChanged &&
+        hasMapping &&
+        !isHashChanged
+      ) {
+        endpoint = existingEndpoint;
+        status = "unchanged";
+      } else {
+        endpoint = await db.modelProviderEndpoint.update({
+          where: { id: existingEndpoint.id },
+          data: {
+            name: norm.name || existingEndpoint.name,
+            contextWindow: norm.contextWindow ?? existingEndpoint.contextWindow,
+            maxOutputTokens: norm.maxOutputTokens ?? existingEndpoint.maxOutputTokens,
+            inputModalities:
+              inputModalities.length > 0 ? inputModalities : existingEndpoint.inputModalities,
+            outputModalities:
+              outputModalities.length > 0 ? outputModalities : existingEndpoint.outputModalities,
+            status: norm.status,
+            isModerated: norm.isModerated,
+            lastSeenAt: new Date(),
+          },
+        });
+        status = "updated";
+      }
+
+      // Ensure EndpointSourceMapping exists and is up to date
+      await db.endpointSourceMapping.upsert({
+        where: {
+          sourceId_externalEndpointId: {
+            sourceId,
+            externalEndpointId: norm.endpointKey,
+          },
+        },
+        update: {
+          endpointId: endpoint.id,
+          payloadHash: norm.payloadHash,
+          lastFetchedAt: new Date(),
+        },
+        create: {
+          endpointId: endpoint.id,
+          sourceId,
+          externalEndpointId: norm.endpointKey,
+          payloadHash: norm.payloadHash,
+          lastFetchedAt: new Date(),
         },
       });
     }
@@ -70,6 +157,11 @@ export class EndpointService {
       db
     );
 
-    return { endpoint, isNew, priceRecorded };
+    return {
+      endpoint,
+      status,
+      isNew: status === "inserted",
+      priceRecorded,
+    };
   }
 }

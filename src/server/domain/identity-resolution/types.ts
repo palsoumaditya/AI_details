@@ -15,8 +15,8 @@ export interface ExternalModelInput {
   inputModalities?: string[];
   outputModalities?: string[];
   architectureType?: string | null;
-  isReasoning?: boolean;
-  isOpenWeight?: boolean;
+  isReasoning?: boolean | null;
+  isOpenWeight?: boolean | null;
   capabilities?: Prisma.InputJsonValue;
   releaseDate?: Date | null;
   knowledgeCutoff?: string | null;

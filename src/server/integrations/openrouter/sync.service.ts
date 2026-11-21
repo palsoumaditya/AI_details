@@ -183,6 +183,8 @@ export class OpenRouterSyncService {
               providerExternalSlug: "openrouter",
               contextWindow: normModel.contextWindow,
               maxOutputTokens: null,
+              inputModalities: normModel.inputModalities,
+              outputModalities: normModel.outputModalities,
               status: "ONLINE" as const,
               isModerated: false,
               pricing: normModel.pricing,
@@ -190,7 +192,7 @@ export class OpenRouterSyncService {
               payloadHash: normModel.payloadHash,
             };
 
-            const { isNew: epNew, priceRecorded } =
+            const { status: epStatus, priceRecorded } =
               await this.endpointService.resolveOrCreateEndpoint(
                 model.id,
                 openRouterProviderId,
@@ -199,8 +201,9 @@ export class OpenRouterSyncService {
               );
 
             result.endpointsProcessed++;
-            if (epNew) result.endpointsInserted++;
-            else result.endpointsUpdated++;
+            if (epStatus === "inserted") result.endpointsInserted++;
+            else if (epStatus === "updated") result.endpointsUpdated++;
+            else result.endpointsUnchanged++;
             if (priceRecorded) result.pricingRecordsCreated++;
           }
         } else {
@@ -264,7 +267,7 @@ export class OpenRouterSyncService {
                 const providerId = providerMapping?.providerId || openRouterProviderId;
                 if (!providerId) continue;
 
-                const { isNew: epNew, priceRecorded } =
+                const { status: epStatus, priceRecorded } =
                   await this.endpointService.resolveOrCreateEndpoint(
                     canonicalMapping.modelId,
                     providerId,
@@ -273,8 +276,9 @@ export class OpenRouterSyncService {
                   );
 
                 result.endpointsProcessed++;
-                if (epNew) result.endpointsInserted++;
-                else result.endpointsUpdated++;
+                if (epStatus === "inserted") result.endpointsInserted++;
+                else if (epStatus === "updated") result.endpointsUpdated++;
+                else result.endpointsUnchanged++;
                 if (priceRecorded) result.pricingRecordsCreated++;
 
                 // Record raw endpoint payload snapshot

@@ -139,6 +139,8 @@ export interface NormalizedEndpoint {
   providerExternalSlug: string;
   contextWindow: number | null;
   maxOutputTokens: number | null;
+  inputModalities?: string[];
+  outputModalities?: string[];
   status: "ONLINE" | "OFFLINE" | "DEPRECATED" | "UNKNOWN";
   isModerated: boolean;
   pricing: NormalizedPricing | null;

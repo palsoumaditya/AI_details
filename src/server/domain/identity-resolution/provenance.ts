@@ -1,5 +1,5 @@
 import type { Model } from "@/generated/prisma/client";
-import type { ExternalModelInput } from "./types";
+import type { ExternalModelInput, FieldConflict } from "./types";
 
 export interface ReconciledModelFields {
   name: string;
@@ -7,8 +7,8 @@ export interface ReconciledModelFields {
   releaseDate?: Date | null;
   knowledgeCutoff?: string | null;
   license?: string | null;
-  isOpenWeight: boolean;
-  isReasoning: boolean;
+  isOpenWeight: boolean | null;
+  isReasoning: boolean | null;
   contextWindow?: number | null;
   maxOutputTokens?: number | null;
   inputModalities: string[];
@@ -21,8 +21,10 @@ export interface ReconciledModelFields {
  *
  * Implements deterministic reconciliation rules across sources:
  * - Prevents last-write-wins overwriting.
- * - Respects source authority for specific fields (e.g. Models.dev for family, releaseDate, license).
- * - Preserves existing high-quality verified fields against null or inferior incoming values.
+ * - STRICTLY eliminates unsafe additive boolean unions (no logical OR for isOpenWeight or isReasoning).
+ * - Distinguishes canonical model modalities from provider-specific endpoint modalities.
+ * - Respects source authority for specific fields (e.g. Models.dev for family, releaseDate, license, open-weight status).
+ * - Preserves existing verified fields against null or inferior incoming values.
  */
 export class ProvenanceEngine {
   /**
@@ -32,9 +34,15 @@ export class ProvenanceEngine {
     canonical: Model,
     incoming: ExternalModelInput,
     sourceSlug: string
-  ): { fields: ReconciledModelFields; hasChanges: boolean; changedFields: string[] } {
+  ): {
+    fields: ReconciledModelFields;
+    hasChanges: boolean;
+    changedFields: string[];
+    conflicts: FieldConflict[];
+  } {
     const isModelsDev = sourceSlug === "modelsdev" || sourceSlug === "models_dev";
     const changedFields: string[] = [];
+    const conflicts: FieldConflict[] = [];
 
     // 1. Family: Models.dev is authoritative. If canonical has none, incoming can populate.
     let family = canonical.family;
@@ -90,40 +98,98 @@ export class ProvenanceEngine {
       changedFields.push("maxOutputTokens");
     }
 
-    // 7. Modalities: merge distinct modalities
-    const inputSet = new Set([...canonical.inputModalities, ...(incoming.inputModalities || [])]);
-    const outputSet = new Set([...canonical.outputModalities, ...(incoming.outputModalities || [])]);
-    const inputModalities = Array.from(inputSet);
-    const outputModalities = Array.from(outputSet);
+    // 7. Modalities: Canonical model modalities vs Provider endpoint modalities
+    // Rule: Do NOT blindly union modalities across providers.
+    // Canonical modalities are authoritative from model catalog.
+    let inputModalities = canonical.inputModalities;
+    let outputModalities = canonical.outputModalities;
 
-    if (inputModalities.length !== canonical.inputModalities.length) {
-      changedFields.push("inputModalities");
-    }
-    if (outputModalities.length !== canonical.outputModalities.length) {
-      changedFields.push("outputModalities");
+    if (isModelsDev && incoming.inputModalities && incoming.inputModalities.length > 0) {
+      if (JSON.stringify(inputModalities.slice().sort()) !== JSON.stringify(incoming.inputModalities.slice().sort())) {
+        inputModalities = incoming.inputModalities;
+        changedFields.push("inputModalities");
+      }
+    } else if (incoming.inputModalities && incoming.inputModalities.length > 0) {
+      const canonicalSet = new Set(canonical.inputModalities);
+      const incomingSet = new Set(incoming.inputModalities);
+      const hasVisionDiff =
+        (canonicalSet.has("image") && !incomingSet.has("image")) ||
+        (!canonicalSet.has("image") && incomingSet.has("image"));
+      if (hasVisionDiff) {
+        conflicts.push({
+          field: "inputModalities",
+          canonicalValue: canonical.inputModalities,
+          incomingValue: incoming.inputModalities,
+          sourceId: incoming.sourceId,
+          severity: "CRITICAL",
+          reason: "Multimodal capability disagreement: incoming provider offering diverges from canonical model input modalities.",
+        });
+      }
     }
 
-    // 8. Open-weight and Reasoning: once true, stay true (additive capability)
+    if (isModelsDev && incoming.outputModalities && incoming.outputModalities.length > 0) {
+      if (JSON.stringify(outputModalities.slice().sort()) !== JSON.stringify(incoming.outputModalities.slice().sort())) {
+        outputModalities = incoming.outputModalities;
+        changedFields.push("outputModalities");
+      }
+    }
+
+    // 8. Open-weight status: NO UNSAFE LOGICAL OR
+    // Nullable semantics: null = unknown, true = open-weight, false = proprietary.
     let isOpenWeight = canonical.isOpenWeight;
-    if (!isOpenWeight && incoming.isOpenWeight) {
-      isOpenWeight = true;
-      changedFields.push("isOpenWeight");
+    if (incoming.isOpenWeight !== undefined && incoming.isOpenWeight !== null) {
+      if (canonical.isOpenWeight === null || canonical.isOpenWeight === undefined) {
+        isOpenWeight = incoming.isOpenWeight;
+        changedFields.push("isOpenWeight");
+      } else if (canonical.isOpenWeight !== incoming.isOpenWeight) {
+        conflicts.push({
+          field: "isOpenWeight",
+          canonicalValue: canonical.isOpenWeight,
+          incomingValue: incoming.isOpenWeight,
+          sourceId: incoming.sourceId,
+          severity: "CRITICAL",
+          reason: `Disagreement on open-weight status: canonical=${canonical.isOpenWeight}, incoming=${incoming.isOpenWeight}`,
+        });
+
+        // Models.dev is authoritative for catalog open-weight metadata
+        if (isModelsDev) {
+          isOpenWeight = incoming.isOpenWeight;
+          changedFields.push("isOpenWeight");
+        }
+      }
     }
 
+    // 9. Reasoning status: NO UNSAFE LOGICAL OR
     let isReasoning = canonical.isReasoning;
-    if (!isReasoning && incoming.isReasoning) {
-      isReasoning = true;
-      changedFields.push("isReasoning");
+    if (incoming.isReasoning !== undefined && incoming.isReasoning !== null) {
+      if (canonical.isReasoning === null || canonical.isReasoning === undefined) {
+        isReasoning = incoming.isReasoning;
+        changedFields.push("isReasoning");
+      } else if (canonical.isReasoning !== incoming.isReasoning) {
+        conflicts.push({
+          field: "isReasoning",
+          canonicalValue: canonical.isReasoning,
+          incomingValue: incoming.isReasoning,
+          sourceId: incoming.sourceId,
+          severity: "CRITICAL",
+          reason: `Disagreement on reasoning status: canonical=${canonical.isReasoning}, incoming=${incoming.isReasoning}`,
+        });
+
+        if (isModelsDev) {
+          isReasoning = incoming.isReasoning;
+          changedFields.push("isReasoning");
+        }
+      }
     }
 
-    // 9. Description: keep canonical if present, else incoming
+    // 10. Description: preserve canonical if present
     let description = canonical.description;
     if (!description && incoming.description) {
       description = incoming.description;
       changedFields.push("description");
     }
 
-    const name = canonical.name; // Keep verified canonical model name
+    const name = canonical.name;
 
     return {
       fields: {
@@ -142,6 +208,7 @@ export class ProvenanceEngine {
       },
       hasChanges: changedFields.length > 0,
       changedFields,
+      conflicts,
     };
   }
 }

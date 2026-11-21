@@ -18,6 +18,11 @@
     "db:smoke-test": "tsx scripts/db-smoke-test.ts",
     "sync:openrouter": "tsx scripts/sync-openrouter.ts",
     "sync:modelsdev": "tsx scripts/sync-modelsdev.ts",
+    "audit:data-integrity": "tsx scripts/audit-data-integrity.ts",
+    "audit:endpoints": "tsx scripts/audit-endpoints.ts",
+    "audit:provenance": "tsx scripts/audit-provenance.ts",
+    "audit:conflicts": "tsx scripts/audit-conflicts.ts",
+    "test:resolution": "tsx scripts/test-identity-resolution.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
