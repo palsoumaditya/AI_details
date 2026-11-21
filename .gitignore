@@ -21,7 +21,7 @@ frontend/.next/
 /build
 
 # prisma generated client
-packages/database/src/generated/
+backend/src/generated/
 
 # misc
 .DS_Store

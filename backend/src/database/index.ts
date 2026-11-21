@@ -9,7 +9,7 @@ export { createPrismaClient, getPrismaClient, prisma } from "./client";
 export type { PrismaClientOptions } from "./client";
 
 // Re-export generated Prisma Client and namespace
-export { PrismaClient, Prisma } from "./generated/prisma/client";
+export { PrismaClient, Prisma } from "../generated/prisma/client";
 
 // Re-export model types
 export type {
@@ -31,7 +31,7 @@ export type {
   FieldProvenance,
   DataConflict,
   ModelResolutionCandidate,
-} from "./generated/prisma/client";
+} from "../generated/prisma/client";
 
 // Re-export enums (both runtime objects and TypeScript types)
 export {
@@ -47,7 +47,7 @@ export {
   CandidateStatus,
   ConflictSeverity,
   ConflictStatus,
-} from "./generated/prisma/enums";
+} from "../generated/prisma/enums";
 
 export type {
   LabRole as LabRoleType,
@@ -62,4 +62,4 @@ export type {
   CandidateStatus as CandidateStatusType,
   ConflictSeverity as ConflictSeverityType,
   ConflictStatus as ConflictStatusType,
-} from "./generated/prisma/enums";
+} from "../generated/prisma/enums";

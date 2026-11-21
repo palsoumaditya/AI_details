@@ -4,15 +4,13 @@ OneAtlas is a developer-centric intelligence platform to discover, evaluate, com
 
 ---
 
-## 🛠️ Technology Stack & Monorepo Architecture (Phase 3C.2)
+## 🛠️ Technology Stack & Workspace Architecture
 
-* **Architecture:** npm-workspaces monorepo
+* **Architecture:** Two-folder Workspace Architecture
   * `@oneatlas/frontend`: Next.js 16 (App Router), React 19, Tailwind CSS v4, Lucide icons
-  * `@oneatlas/backend`: Business logic, integrations (OpenRouter, Models.dev), canonical identity resolution, provenance engine, conflict detection, ingestion coordinator
-  * `@oneatlas/database`: Prisma ORM 7, PostgreSQL adapter (`@prisma/adapter-pg`), schema, migrations, seed script
-  * `@oneatlas/shared`: Frontend-safe DTOs, Zod schemas, constants
+  * `@oneatlas/backend`: Business logic, Prisma ORM 7 database layer, integrations (OpenRouter, Models.dev), canonical identity resolution, provenance engine, conflict detection, ingestion coordinator, shared contracts
 * **Runtime:** Node.js 24 LTS
-* **Language:** TypeScript 5 (Strict Mode across all workspaces)
+* **Language:** TypeScript 5 (Strict Mode across both workspaces)
 * **Database:** PostgreSQL 18.7 (Neon Serverless PostgreSQL)
 * **ORM:** Prisma ORM 7.10.1 with `@prisma/adapter-pg` driver adapter
 * **Styling:** Tailwind CSS v4 with `@tailwindcss/postcss`
@@ -20,7 +18,7 @@ OneAtlas is a developer-centric intelligence platform to discover, evaluate, com
 
 ---
 
-## 📁 Monorepo Workspace Structure
+## 📁 Workspace Structure
 
 ```
 AI_details/
@@ -33,30 +31,20 @@ AI_details/
 │   ├── next.config.ts
 │   └── package.json              # @oneatlas/frontend
 │
-├── backend/                      # Domain Logic, Integrations & Ingestion
+├── backend/                      # Domain Logic, Integrations, Ingestion & Database
+│   ├── prisma/                   # schema.prisma, migrations/, seed.ts
+│   ├── prisma.config.ts          # Prisma ORM 7 configuration
 │   ├── src/
+│   │   ├── database/             # Client factory, singleton, typed re-exports
 │   │   ├── domain/               # Identity resolution, provenance, conflict tracking
 │   │   ├── integrations/         # OpenRouter & Models.dev clients, services, mappers
 │   │   ├── ingestion/            # Multi-source coordination, advisory locks, batching
+│   │   ├── shared/               # Shared contracts, DTO types, Zod schemas, constants
 │   │   └── config/               # Environment configuration
 │   ├── scripts/                  # CLI sync, test, and audit runners
 │   └── package.json              # @oneatlas/backend
 │
-├── packages/
-│   ├── database/                 # Database Schema, Migrations & Prisma Client
-│   │   ├── prisma/               # schema.prisma, migrations/, seed.ts
-│   │   ├── src/                  # Client factory, singleton, typed re-exports
-│   │   ├── prisma.config.ts
-│   │   └── package.json          # @oneatlas/database
-│   │
-│   └── shared/                   # Cross-Workspace Shared Contracts
-│       ├── src/
-│       │   ├── types/            # Frontend-safe DTOs
-│       │   ├── schemas/          # Zod schemas (pagination, filters)
-│       │   └── constants/        # Platform constants & routes
-│       └── package.json          # @oneatlas/shared
-│
-├── package.json                  # Root monorepo workspace coordinator
+├── package.json                  # Root workspace coordinator
 ├── tsconfig.json                 # Monorepo project references
 ├── .env.example
 └── README.md

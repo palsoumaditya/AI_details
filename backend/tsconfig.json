@@ -11,13 +11,19 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "baseUrl": ".",
     "paths": {
-      "@oneatlas/database": ["../packages/database/src/index.ts"],
-      "@oneatlas/database/*": ["../packages/database/src/*"],
-      "@oneatlas/shared": ["../packages/shared/src/index.ts"],
-      "@oneatlas/shared/*": ["../packages/shared/src/*"]
+      "@/database": ["./src/database/index.ts"],
+      "@/database/*": ["./src/database/*"],
+      "@/shared": ["./src/shared/index.ts"],
+      "@/shared/*": ["./src/shared/*"],
+      "@oneatlas/database": ["./src/database/index.ts"],
+      "@oneatlas/database/*": ["./src/database/*"],
+      "@oneatlas/shared": ["./src/shared/index.ts"],
+      "@oneatlas/shared/*": ["./src/shared/*"],
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "prisma/**/*.ts"],
   "exclude": ["node_modules"]
 }

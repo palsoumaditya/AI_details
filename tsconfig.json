@@ -12,8 +12,6 @@
     "noEmit": true
   },
   "references": [
-    { "path": "./packages/database" },
-    { "path": "./packages/shared" },
     { "path": "./backend" },
     { "path": "./frontend" }
   ],

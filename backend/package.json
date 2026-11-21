@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./database": "./src/database/index.ts",
+    "./shared": "./src/shared/index.ts",
     "./integrations/openrouter": "./src/integrations/openrouter/index.ts",
     "./integrations/modelsdev": "./src/integrations/modelsdev/index.ts",
     "./domain/identity-resolution": "./src/domain/identity-resolution/index.ts",
@@ -12,6 +14,14 @@
     "./ingestion/contracts": "./src/ingestion/contracts/index.ts"
   },
   "scripts": {
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate",
     "sync:openrouter": "tsx scripts/sync-openrouter.ts",
     "sync:modelsdev": "tsx scripts/sync-modelsdev.ts",
     "sync:all": "tsx scripts/sync-all-sources.ts",
@@ -26,9 +36,8 @@
     "audit:endpoints": "tsx scripts/audit-endpoints.ts"
   },
   "dependencies": {
-    "@oneatlas/database": "*",
-    "@oneatlas/shared": "*",
     "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "dotenv": "^18.0.10",
     "pg": "^8.23.1",
     "zod": "^4.6.7"
@@ -36,6 +45,7 @@
   "devDependencies": {
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
+    "prisma": "^7.10.1",
     "tsx": "^4.23.15",
     "typescript": "^5"
   }

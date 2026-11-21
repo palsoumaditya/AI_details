@@ -20,13 +20,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@oneatlas/database": ["../packages/database/src/index.ts"],
-      "@oneatlas/database/*": ["../packages/database/src/*"],
-      "@oneatlas/shared": ["../packages/shared/src/index.ts"],
-      "@oneatlas/shared/*": ["../packages/shared/src/*"],
-      "@oneatlas/backend": ["../backend/src/index.ts"],
-      "@oneatlas/backend/*": ["../backend/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

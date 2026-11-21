@@ -6,9 +6,9 @@ import { defineConfig } from "prisma/config";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load local .env if present, then fallback to monorepo root .env
+// Load local .env if present, then fallback to project root .env
 dotenv.config();
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const rawUrl = process.env.DIRECT_URL || process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public";
 // Neon pooler URLs (-pooler) do not support PostgreSQL session-level advisory locks needed for migrations.
