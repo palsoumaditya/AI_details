@@ -1,0 +1,42 @@
+{
+  "name": "@oneatlas/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./integrations/openrouter": "./src/integrations/openrouter/index.ts",
+    "./integrations/modelsdev": "./src/integrations/modelsdev/index.ts",
+    "./domain/identity-resolution": "./src/domain/identity-resolution/index.ts",
+    "./ingestion": "./src/ingestion/coordinator/index.ts",
+    "./ingestion/contracts": "./src/ingestion/contracts/index.ts"
+  },
+  "scripts": {
+    "sync:openrouter": "tsx scripts/sync-openrouter.ts",
+    "sync:modelsdev": "tsx scripts/sync-modelsdev.ts",
+    "sync:all": "tsx scripts/sync-all-sources.ts",
+    "test:openrouter": "tsx scripts/test-openrouter.ts",
+    "test:modelsdev": "tsx scripts/test-modelsdev.ts",
+    "test:resolution": "tsx scripts/test-identity-resolution.ts",
+    "test:coordinator": "tsx scripts/test-ingestion-coordinator.ts",
+    "db:smoke-test": "tsx scripts/db-smoke-test.ts",
+    "audit:data-integrity": "tsx scripts/audit-data-integrity.ts",
+    "audit:provenance": "tsx scripts/audit-provenance.ts",
+    "audit:conflicts": "tsx scripts/audit-conflicts.ts",
+    "audit:endpoints": "tsx scripts/audit-endpoints.ts"
+  },
+  "dependencies": {
+    "@oneatlas/database": "*",
+    "@oneatlas/shared": "*",
+    "@prisma/adapter-pg": "^7.10.1",
+    "dotenv": "^18.0.10",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}
