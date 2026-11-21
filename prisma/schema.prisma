@@ -101,7 +101,9 @@ model Model {
   slug             String       @unique
   name             String
   description      String?
+  family           String?
   releaseDate      DateTime?
+  knowledgeCutoff  String?
   license          String?
   architectureType String?
   isReasoning      Boolean      @default(false)
@@ -122,6 +124,7 @@ model Model {
   benchmarkResults BenchmarkResult[]
 
   @@index([status])
+  @@index([family])
   @@index([releaseDate(sort: Desc)])
   @@index([isReasoning])
   @@index([isOpenWeight])
@@ -186,6 +189,7 @@ model ExternalSource {
   // Relationships
   modelMappings    ModelSourceMapping[]
   providerMappings ProviderSourceMapping[]
+  endpointMappings EndpointSourceMapping[]
   benchmarkResults BenchmarkResult[]
   pricingRecords   PricingRecord[]
   syncRuns         SyncRun[]
@@ -243,6 +247,29 @@ model ProviderSourceMapping {
 }
 
 // ==========================================
+// EXTERNAL TO CANONICAL ENDPOINT MAPPINGS
+// ==========================================
+
+model EndpointSourceMapping {
+  id                 String    @id @default(cuid())
+  endpointId         String
+  sourceId           String
+  externalEndpointId String
+  payloadHash        String?
+  lastFetchedAt      DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  endpoint ModelProviderEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  source   ExternalSource        @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceId, externalEndpointId])
+  @@index([endpointId])
+  @@index([sourceId])
+  @@map("endpoint_source_mappings")
+}
+
+// ==========================================
 // PROVIDER-SPECIFIC MODEL ENDPOINTS
 // ==========================================
 
@@ -254,14 +281,16 @@ model ModelProviderEndpoint {
   name            String?
   contextWindow   Int?
   maxOutputTokens Int?
+  capabilities    Json?
   status          EndpointStatus @default(ONLINE)
   isModerated     Boolean        @default(false)
   lastSeenAt      DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  model            Model             @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  provider         Provider          @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  model            Model                   @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  provider         Provider                @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  sourceMappings   EndpointSourceMapping[]
   pricingRecords   PricingRecord[]
   benchmarkResults BenchmarkResult[]
 
@@ -362,7 +391,9 @@ model SyncRun {
   itemsProcessed Int             @default(0)
   itemsInserted  Int             @default(0)
   itemsUpdated   Int             @default(0)
+  itemsUnchanged Int             @default(0)
   itemsSkipped   Int             @default(0)
+  itemsFailed    Int             @default(0)
   errorSummary   String?
   errorDetails   Json?
   startedAt      DateTime        @default(now())

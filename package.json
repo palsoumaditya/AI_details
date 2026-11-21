@@ -17,6 +17,7 @@
     "db:studio": "prisma studio",
     "db:smoke-test": "tsx scripts/db-smoke-test.ts",
     "sync:openrouter": "tsx scripts/sync-openrouter.ts",
+    "sync:modelsdev": "tsx scripts/sync-modelsdev.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
