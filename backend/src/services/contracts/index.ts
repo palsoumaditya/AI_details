@@ -8,17 +8,25 @@ import type {
   BenchmarkResultDto,
   PaginationMeta,
   PricingHistoryResult,
+  ProviderDirectoryResult,
+  ProviderDetailResult,
+  AiLabDirectoryResult,
+  AiLabDetailResult,
 } from "../../shared/types/api";
 import type {
   ModelsCatalogQuery,
   ModelsCatalogInputQuery,
   PricingHistoryQuery,
   PricingHistoryInputQuery,
+  ProvidersInputQuery,
+  ProviderEndpointsInputQuery,
+  LabsInputQuery,
+  LabModelsInputQuery,
   CompareRequest,
 } from "../../shared/schemas/api";
 
 /**
- * Backend Query Service Contracts (Phase 4A, 4B, 4C)
+ * Backend Query Service Contracts (Phase 4A, 4B, 4C, 4D)
  *
  * Defines explicit boundaries between HTTP Route Handlers and Backend Services.
  * These interfaces enforce DTO serialization and prevent direct Prisma queries in route handlers.
@@ -53,13 +61,13 @@ export interface IModelDetailQueryService {
 }
 
 export interface IProvidersQueryService {
-  listProviders(): Promise<ProviderDto[]>;
-  getProviderBySlug(slug: string): Promise<ProviderDto | null>;
+  listProviders(params?: ProvidersInputQuery): Promise<ProviderDirectoryResult>;
+  getProviderBySlug(slug: string, endpointQuery?: ProviderEndpointsInputQuery): Promise<ProviderDetailResult | null>;
 }
 
 export interface ILabsQueryService {
-  listLabs(): Promise<AiLabDto[]>;
-  getLabBySlug(slug: string): Promise<AiLabDto | null>;
+  listLabs(params?: LabsInputQuery): Promise<AiLabDirectoryResult>;
+  getLabBySlug(slug: string, modelQuery?: LabModelsInputQuery): Promise<AiLabDetailResult | null>;
 }
 
 export interface ICompareQueryService {

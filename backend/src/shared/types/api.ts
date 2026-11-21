@@ -337,3 +337,155 @@ export interface HealthDto {
     api: HealthCheckComponent;
   };
 }
+
+// ==========================================
+// PROVIDER & AI LAB DIRECTORY DTOs (Phase 4D)
+// ==========================================
+
+/** Item DTO for Provider Directory Collection */
+export interface ProviderDirectoryItemDto {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  providerType: string;
+  endpointCount: number;
+  onlineEndpointCount: number;
+  offlineEndpointCount: number;
+  unknownEndpointCount: number;
+  modelCount: number;
+  onlineModelCount: number;
+  supportedInputModalities: string[];
+  supportedOutputModalities: string[];
+  lastSeenAt: string | null;
+}
+
+/** Provider Endpoint Item for Provider Detail View */
+export interface ProviderEndpointItemDto {
+  id: string;
+  endpointKey: string;
+  name: string | null;
+  status: string;
+  model: {
+    id: string;
+    slug: string;
+    name: string;
+    family: string | null;
+  };
+  contextWindow: number | null;
+  maxOutputTokens: number | null;
+  inputModalities: string[];
+  outputModalities: string[];
+  capabilities: Record<string, unknown> | null;
+  isModerated: boolean;
+  lastSeenAt: string | null;
+}
+
+/** Full Provider Detail DTO with Paginated Endpoints */
+export interface ProviderDetailDto {
+  provider: ProviderDirectoryItemDto;
+  endpoints: ProviderEndpointItemDto[];
+  pagination: PaginationMeta;
+}
+
+/** Result shape for Provider Directory Query Service */
+export interface ProviderDirectoryResult {
+  providers: ProviderDirectoryItemDto[];
+  pagination: PaginationMeta;
+  appliedFilters: {
+    q?: string;
+    providerType?: string;
+    hasEndpoints?: boolean;
+    hasOnlineEndpoints?: boolean;
+    sort: string;
+    page: number;
+    limit: number;
+  };
+}
+
+/** Result shape for Provider Detail Query Service */
+export interface ProviderDetailResult {
+  provider: ProviderDirectoryItemDto;
+  endpoints: ProviderEndpointItemDto[];
+  pagination: PaginationMeta;
+  appliedFilters: {
+    slug: string;
+    status?: string;
+    inputModality?: string;
+    outputModality?: string;
+    page: number;
+    limit: number;
+  };
+}
+
+/** Item DTO for AI Lab Directory Collection */
+export interface AiLabDirectoryItemDto {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  country: string | null;
+  modelCount: number;
+  creatorModelCount: number;
+  publisherModelCount: number;
+  collaboratorModelCount: number;
+}
+
+/** Family Distribution Group for AI Lab Detail */
+export interface FamilyDistributionItemDto {
+  family: string | null;
+  modelCount: number;
+}
+
+/** Model Item associated with an AI Lab */
+export interface AiLabModelItemDto {
+  id: string;
+  slug: string;
+  name: string;
+  family: string | null;
+  releaseDate: string | null;
+  status: string;
+  isReasoning: boolean | null;
+  isOpenWeight: boolean | null;
+  relationshipTypes: string[];
+}
+
+/** Full AI Lab Detail DTO with Family Distribution and Paginated Models */
+export interface AiLabDetailDto {
+  lab: AiLabDirectoryItemDto;
+  familyDistribution: FamilyDistributionItemDto[];
+  models: AiLabModelItemDto[];
+  pagination: PaginationMeta;
+}
+
+/** Result shape for AI Lab Directory Query Service */
+export interface AiLabDirectoryResult {
+  labs: AiLabDirectoryItemDto[];
+  pagination: PaginationMeta;
+  appliedFilters: {
+    q?: string;
+    country?: string;
+    sort: string;
+    page: number;
+    limit: number;
+  };
+}
+
+/** Result shape for AI Lab Detail Query Service */
+export interface AiLabDetailResult {
+  lab: AiLabDirectoryItemDto;
+  familyDistribution: FamilyDistributionItemDto[];
+  models: AiLabModelItemDto[];
+  pagination: PaginationMeta;
+  appliedFilters: {
+    slug: string;
+    relationshipType?: string;
+    family?: string;
+    page: number;
+    limit: number;
+  };
+}
