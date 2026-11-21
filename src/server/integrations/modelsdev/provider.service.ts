@@ -31,13 +31,24 @@ export class ProviderService {
     if (existingMapping) {
       const provider = existingMapping.provider;
 
+      // If source payloadHash has not changed, source has no new data -> UNCHANGED
+      if (normalized.payloadHash && existingMapping.payloadHash === normalized.payloadHash) {
+        return { provider, status: "unchanged" };
+      }
+
       // Check if any normalized fields have actually changed
       const isWebsiteChanged = normalized.website !== null && provider.website !== normalized.website;
       const isDocChanged = normalized.apiDocUrl !== null && provider.apiDocUrl !== normalized.apiDocUrl;
       const isNameChanged = provider.name !== normalized.name;
-      const isHashChanged = existingMapping.payloadHash !== normalized.payloadHash;
 
-      if (!isWebsiteChanged && !isDocChanged && !isNameChanged && !isHashChanged) {
+      if (!isWebsiteChanged && !isDocChanged && !isNameChanged) {
+        await db.providerSourceMapping.update({
+          where: { id: existingMapping.id },
+          data: {
+            payloadHash: normalized.payloadHash,
+            lastFetchedAt: new Date(),
+          },
+        });
         return { provider, status: "unchanged" };
       }
 
@@ -81,15 +92,21 @@ export class ProviderService {
       });
 
       // Update missing optional metadata without overwriting valid data
-      const updatedProvider = await db.provider.update({
-        where: { id: existingProviderBySlug.id },
-        data: {
-          website: existingProviderBySlug.website || normalized.website,
-          apiDocUrl: existingProviderBySlug.apiDocUrl || normalized.apiDocUrl,
-        },
-      });
+      const needsWebsite = !existingProviderBySlug.website && normalized.website;
+      const needsDoc = !existingProviderBySlug.apiDocUrl && normalized.apiDocUrl;
 
-      return { provider: updatedProvider, status: "updated" };
+      if (needsWebsite || needsDoc) {
+        const updatedProvider = await db.provider.update({
+          where: { id: existingProviderBySlug.id },
+          data: {
+            website: existingProviderBySlug.website || normalized.website,
+            apiDocUrl: existingProviderBySlug.apiDocUrl || normalized.apiDocUrl,
+          },
+        });
+        return { provider: updatedProvider, status: "updated" };
+      }
+
+      return { provider: existingProviderBySlug, status: "unchanged" };
     }
 
     // 3. Brand new provider: insert Provider and ProviderSourceMapping

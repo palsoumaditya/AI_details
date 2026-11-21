@@ -159,12 +159,15 @@ export interface SyncResult {
   modelsProcessed: number;
   modelsInserted: number;
   modelsUpdated: number;
+  modelsUnchanged: number;
   providersProcessed: number;
   providersInserted: number;
   providersUpdated: number;
+  providersUnchanged: number;
   endpointsProcessed: number;
   endpointsInserted: number;
   endpointsUpdated: number;
+  endpointsUnchanged: number;
   pricingRecordsCreated: number;
   rawRecordsCreated: number;
   errors: string[];

@@ -71,6 +71,14 @@ enum SyncStatus {
   PARTIAL
 }
 
+enum CandidateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_REVIEW
+  STALE
+}
+
 // ==========================================
 // AI LABS & RESEARCH ORGANIZATIONS
 // ==========================================
@@ -118,10 +126,11 @@ model Model {
   updatedAt        DateTime     @updatedAt
 
   // Relationships
-  labs             ModelLab[]
-  endpoints        ModelProviderEndpoint[]
-  sourceMappings   ModelSourceMapping[]
-  benchmarkResults BenchmarkResult[]
+  labs                 ModelLab[]
+  endpoints            ModelProviderEndpoint[]
+  sourceMappings       ModelSourceMapping[]
+  benchmarkResults     BenchmarkResult[]
+  resolutionCandidates ModelResolutionCandidate[]
 
   @@index([status])
   @@index([family])
@@ -187,13 +196,14 @@ model ExternalSource {
   updatedAt        DateTime @updatedAt
 
   // Relationships
-  modelMappings    ModelSourceMapping[]
-  providerMappings ProviderSourceMapping[]
-  endpointMappings EndpointSourceMapping[]
-  benchmarkResults BenchmarkResult[]
-  pricingRecords   PricingRecord[]
-  syncRuns         SyncRun[]
-  rawSourceRecords RawSourceRecord[]
+  modelMappings        ModelSourceMapping[]
+  providerMappings     ProviderSourceMapping[]
+  endpointMappings     EndpointSourceMapping[]
+  benchmarkResults     BenchmarkResult[]
+  pricingRecords       PricingRecord[]
+  syncRuns             SyncRun[]
+  rawSourceRecords     RawSourceRecord[]
+  resolutionCandidates ModelResolutionCandidate[]
 
   @@map("external_sources")
 }
@@ -220,6 +230,34 @@ model ModelSourceMapping {
   @@index([modelId])
   @@index([sourceId])
   @@map("model_source_mappings")
+}
+
+// ==========================================
+// MODEL IDENTITY RESOLUTION CANDIDATES
+// ==========================================
+
+model ModelResolutionCandidate {
+  id               String          @id @default(cuid())
+  sourceId         String
+  externalModelId  String
+  candidateModelId String
+  matchingStrategy String
+  confidenceScore  Float
+  evidence         Json
+  status           CandidateStatus @default(PENDING)
+  notes            String?
+  reviewedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  source         ExternalSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  candidateModel Model          @relation(fields: [candidateModelId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalModelId, candidateModelId])
+  @@index([status])
+  @@index([sourceId])
+  @@index([candidateModelId])
+  @@map("model_resolution_candidates")
 }
 
 // ==========================================

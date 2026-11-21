@@ -36,12 +36,15 @@ export class OpenRouterSyncService {
       modelsProcessed: 0,
       modelsInserted: 0,
       modelsUpdated: 0,
+      modelsUnchanged: 0,
       providersProcessed: 0,
       providersInserted: 0,
       providersUpdated: 0,
+      providersUnchanged: 0,
       endpointsProcessed: 0,
       endpointsInserted: 0,
       endpointsUpdated: 0,
+      endpointsUnchanged: 0,
       pricingRecordsCreated: 0,
       rawRecordsCreated: 0,
       errors: [],
@@ -112,13 +115,14 @@ export class OpenRouterSyncService {
         const normProv = normalizeProvider(rawProv);
 
         if (!dryRun) {
-          const { isNew } = await this.providerService.resolveOrCreateProvider(
+          const { status } = await this.providerService.resolveOrCreateProvider(
             sourceId,
             normProv
           );
 
-          if (isNew) result.providersInserted++;
-          else result.providersUpdated++;
+          if (status === "inserted") result.providersInserted++;
+          else if (status === "updated") result.providersUpdated++;
+          else result.providersUnchanged++;
 
           // Record raw provenance snapshot if changed
           const rawCreated = await this.persistRawRecordIfNew(
@@ -150,13 +154,14 @@ export class OpenRouterSyncService {
         const normModel = normalizeModel(rawModel);
 
         if (!dryRun) {
-          const { model, isNew } = await this.modelService.resolveOrCreateModel(
+          const { model, status } = await this.modelService.resolveOrCreateModel(
             sourceId,
             normModel
           );
 
-          if (isNew) result.modelsInserted++;
-          else result.modelsUpdated++;
+          if (status === "inserted") result.modelsInserted++;
+          else if (status === "updated") result.modelsUpdated++;
+          else result.modelsUnchanged++;
 
           // Record raw model provenance snapshot if changed
           const rawCreated = await this.persistRawRecordIfNew(
@@ -308,6 +313,7 @@ export class OpenRouterSyncService {
             itemsProcessed: result.modelsProcessed + result.providersProcessed,
             itemsInserted: result.modelsInserted + result.providersInserted + result.endpointsInserted,
             itemsUpdated: result.modelsUpdated + result.providersUpdated + result.endpointsUpdated,
+            itemsUnchanged: result.modelsUnchanged + result.providersUnchanged + result.endpointsUnchanged,
             errorSummary: result.errors.length > 0 ? result.errors.join("; ") : null,
             errorDetails: result.errors.length > 0 ? (result.errors as unknown as Prisma.InputJsonValue) : undefined,
             completedAt: new Date(),

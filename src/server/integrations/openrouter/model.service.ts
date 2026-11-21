@@ -1,6 +1,8 @@
 import { PrismaClient, Prisma, Model } from "@/generated/prisma/client";
 import type { NormalizedModel } from "./types";
 
+export type ModelSyncStatus = "inserted" | "updated" | "unchanged";
+
 /**
  * Service for resolving, deduplicating, and persisting canonical AI models.
  */
@@ -9,12 +11,13 @@ export class ModelService {
 
   /**
    * Resolves or creates a canonical Model and associates ModelSourceMapping and ModelLab.
+   * Enforces fine-grained change detection for true idempotency (zero redundant SQL updates).
    */
   async resolveOrCreateModel(
     sourceId: string,
     norm: NormalizedModel,
     tx?: Prisma.TransactionClient
-  ): Promise<{ model: Model; isNew: boolean }> {
+  ): Promise<{ model: Model; isNew: boolean; status: ModelSyncStatus }> {
     const db = tx || this.prisma;
 
     // 1. Check existing ModelSourceMapping
@@ -29,6 +32,42 @@ export class ModelService {
     });
 
     if (existingMapping) {
+      const model = existingMapping.model;
+
+      // If source payloadHash is unchanged, this source has no new data -> UNCHANGED
+      if (norm.payloadHash && existingMapping.payloadHash === norm.payloadHash) {
+        return { model, isNew: false, status: "unchanged" };
+      }
+
+      // If hash changed, check if normalized fields changed
+      const isContextChanged =
+        norm.contextWindow !== null &&
+        norm.contextWindow !== undefined &&
+        model.contextWindow !== norm.contextWindow;
+      const isReasoningChanged = norm.isReasoning !== model.isReasoning;
+      const isOpenWeightChanged = norm.isOpenWeight !== model.isOpenWeight;
+
+      if (!isContextChanged && !isReasoningChanged && !isOpenWeightChanged) {
+        await db.modelSourceMapping.update({
+          where: { id: existingMapping.id },
+          data: {
+            payloadHash: norm.payloadHash,
+            externalSlug: norm.slug,
+            lastFetchedAt: new Date(),
+          },
+        });
+        return { model, isNew: false, status: "unchanged" };
+      }
+
+      const updatedModel = await db.model.update({
+        where: { id: model.id },
+        data: {
+          contextWindow: norm.contextWindow ?? model.contextWindow,
+          isReasoning: norm.isReasoning || model.isReasoning,
+          isOpenWeight: norm.isOpenWeight || model.isOpenWeight,
+        },
+      });
+
       await db.modelSourceMapping.update({
         where: { id: existingMapping.id },
         data: {
@@ -38,7 +77,7 @@ export class ModelService {
         },
       });
 
-      return { model: existingMapping.model, isNew: false };
+      return { model: updatedModel, isNew: false, status: "updated" };
     }
 
     // 2. Check if canonical model already exists by slug
@@ -47,6 +86,8 @@ export class ModelService {
     });
 
     let isNew = false;
+    let status: ModelSyncStatus = "inserted";
+
     if (!model) {
       model = await db.model.create({
         data: {
@@ -64,6 +105,9 @@ export class ModelService {
         },
       });
       isNew = true;
+      status = "inserted";
+    } else {
+      status = "updated";
     }
 
     // 3. Link to AI Lab via ModelLab if lab is recognized
@@ -103,6 +147,6 @@ export class ModelService {
       },
     });
 
-    return { model, isNew };
+    return { model, isNew, status };
   }
 }

@@ -1,6 +1,8 @@
 import { PrismaClient, Prisma, Provider } from "@/generated/prisma/client";
 import type { NormalizedProvider } from "./types";
 
+export type ProviderSyncStatus = "inserted" | "updated" | "unchanged";
+
 /**
  * Service for resolving and persisting external inference providers.
  */
@@ -9,12 +11,13 @@ export class ProviderService {
 
   /**
    * Resolves or creates a canonical Provider and links ProviderSourceMapping.
+   * Enforces fine-grained change detection for true idempotency.
    */
   async resolveOrCreateProvider(
     sourceId: string,
     norm: NormalizedProvider,
     tx?: Prisma.TransactionClient
-  ): Promise<{ provider: Provider; isNew: boolean }> {
+  ): Promise<{ provider: Provider; isNew: boolean; status: ProviderSyncStatus }> {
     const db = tx || this.prisma;
 
     // 1. Check existing ProviderSourceMapping
@@ -29,7 +32,39 @@ export class ProviderService {
     });
 
     if (existingMapping) {
-      // Update lastFetchedAt and payloadHash
+      const provider = existingMapping.provider;
+
+      // If source payloadHash is unchanged, this source has no new data -> UNCHANGED (zero SQL updates)
+      if (norm.payloadHash && existingMapping.payloadHash === norm.payloadHash) {
+        return { provider, isNew: false, status: "unchanged" };
+      }
+
+      // If hash changed, check if normalized fields changed
+      const isNameChanged = provider.name !== norm.name;
+      const isWebsiteChanged = norm.website !== null && provider.website !== norm.website;
+
+      if (!isNameChanged && !isWebsiteChanged) {
+        // Hash changed but values identical -> update mapping hash only
+        await db.providerSourceMapping.update({
+          where: { id: existingMapping.id },
+          data: {
+            payloadHash: norm.payloadHash,
+            externalSlug: norm.slug,
+            lastFetchedAt: new Date(),
+          },
+        });
+        return { provider, isNew: false, status: "unchanged" };
+      }
+
+      // Fields changed -> update provider and mapping
+      const updatedProvider = await db.provider.update({
+        where: { id: provider.id },
+        data: {
+          name: norm.name || provider.name,
+          website: provider.website || norm.website,
+        },
+      });
+
       await db.providerSourceMapping.update({
         where: { id: existingMapping.id },
         data: {
@@ -39,7 +74,7 @@ export class ProviderService {
         },
       });
 
-      return { provider: existingMapping.provider, isNew: false };
+      return { provider: updatedProvider, isNew: false, status: "updated" };
     }
 
     // 2. Check canonical provider by known alias or slug
@@ -59,6 +94,8 @@ export class ProviderService {
     });
 
     let isNew = false;
+    let status: ProviderSyncStatus = "inserted";
+
     if (!provider) {
       provider = await db.provider.create({
         data: {
@@ -70,6 +107,9 @@ export class ProviderService {
         },
       });
       isNew = true;
+      status = "inserted";
+    } else {
+      status = "updated";
     }
 
     // 3. Create the ProviderSourceMapping
@@ -84,6 +124,6 @@ export class ProviderService {
       },
     });
 
-    return { provider, isNew };
+    return { provider, isNew, status };
   }
 }
