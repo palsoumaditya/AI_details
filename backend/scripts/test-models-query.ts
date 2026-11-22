@@ -28,8 +28,9 @@ const FIXTURE_PREFIX = `_test_fixture_${Date.now()}`;
 interface TestFixtureContext {
   labId: string;
   labSlug: string;
-  providerId: string;
+  providerIds: string[];
   providerSlug: string;
+  provider2Slug: string;
   sourceId: string;
   createdModelIds: string[];
 }
@@ -45,13 +46,23 @@ async function setupFixtures(): Promise<TestFixtureContext> {
     },
   });
 
-  // 2. Create isolated Inference Provider
+  // 2. Create isolated Inference Providers
   const providerSlug = `${FIXTURE_PREFIX}_provider`;
   const provider = await prisma.provider.create({
     data: {
       slug: providerSlug,
       name: "Fixture Cloud Inference",
       providerType: "CLOUD",
+      isActive: true,
+    },
+  });
+
+  const provider2Slug = `${FIXTURE_PREFIX}_provider2`;
+  const provider2 = await prisma.provider.create({
+    data: {
+      slug: provider2Slug,
+      name: "Fixture Secondary Cloud",
+      providerType: "DIRECT",
       isActive: true,
     },
   });
@@ -70,7 +81,7 @@ async function setupFixtures(): Promise<TestFixtureContext> {
 
   const createdModelIds: string[] = [];
 
-  // Model A: Reasoning, Image input, Lab associated, Endpoint with known pricing
+  // Model A: Reasoning, Image input, Lab associated, Endpoint with known pricing ($1.50 in, $6.00 out)
   const modelA = await prisma.model.create({
     data: {
       slug: `${FIXTURE_PREFIX}_model_alpha`,
@@ -109,7 +120,7 @@ async function setupFixtures(): Promise<TestFixtureContext> {
   });
   createdModelIds.push(modelA.id);
 
-  // Model B: Open Weight, Audio input, Free (Zero Price), Large Context
+  // Model B: Open Weight, Audio input, Free (Zero Price), Large Context ($0.00 in, $0.00 out)
   const modelB = await prisma.model.create({
     data: {
       slug: `${FIXTURE_PREFIX}_model_beta`,
@@ -142,7 +153,7 @@ async function setupFixtures(): Promise<TestFixtureContext> {
   });
   createdModelIds.push(modelB.id);
 
-  // Model C: Null Reasoning, Null OpenWeight, Null Context, Offline endpoint (no verified pricing)
+  // Model C: Null Reasoning, Null OpenWeight, Null Context, Offline endpoint (no verified online pricing)
   const modelC = await prisma.model.create({
     data: {
       slug: `${FIXTURE_PREFIX}_model_gamma`,
@@ -175,11 +186,104 @@ async function setupFixtures(): Promise<TestFixtureContext> {
   });
   createdModelIds.push(modelC.id);
 
+  // Model D: Multi-provider, multi-endpoint, historical snapshots
+  // Endpoint 1 (Provider 1): $3.00 in, $10.00 out
+  // Endpoint 2 (Provider 2): Older snapshot $5.00 in, $15.00 out; Latest snapshot $2.00 in, $12.00 out
+  // Expected lowest: input = $2.00, output = $10.00
+  const modelD = await prisma.model.create({
+    data: {
+      slug: `${FIXTURE_PREFIX}_model_delta`,
+      name: "Delta Multi-Endpoint 70B",
+      family: "DeltaSeries",
+      description: "High performance model hosted across multiple cloud providers.",
+      isReasoning: true,
+      isOpenWeight: true,
+      contextWindow: 128000,
+      inputModalities: ["text", "image"],
+      outputModalities: ["text"],
+      releaseDate: new Date("2026-09-01T00:00:00Z"),
+      status: "ACTIVE",
+      endpoints: {
+        create: [
+          {
+            providerId: provider.id,
+            endpointKey: "delta-provider1",
+            status: "ONLINE",
+            pricingRecords: {
+              create: {
+                sourceId: source.id,
+                inputPricePerMillion: new Prisma.Decimal("3.0000"),
+                outputPricePerMillion: new Prisma.Decimal("10.0000"),
+                observedAt: new Date("2026-11-20T10:00:00Z"),
+              },
+            },
+          },
+          {
+            providerId: provider2.id,
+            endpointKey: "delta-provider2",
+            status: "ONLINE",
+            pricingRecords: {
+              create: [
+                {
+                  sourceId: source.id,
+                  inputPricePerMillion: new Prisma.Decimal("5.0000"),
+                  outputPricePerMillion: new Prisma.Decimal("15.0000"),
+                  observedAt: new Date("2026-11-19T00:00:00Z"), // Older superseded snapshot
+                },
+                {
+                  sourceId: source.id,
+                  inputPricePerMillion: new Prisma.Decimal("2.0000"),
+                  outputPricePerMillion: new Prisma.Decimal("12.0000"),
+                  observedAt: new Date("2026-11-20T12:00:00Z"), // Latest valid snapshot
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+  createdModelIds.push(modelD.id);
+
+  // Model E: Online endpoint with explicitly null input and output prices
+  const modelE = await prisma.model.create({
+    data: {
+      slug: `${FIXTURE_PREFIX}_model_epsilon`,
+      name: "Epsilon Null Pricing 1B",
+      family: "EpsilonSeries",
+      description: "Model with online endpoint but null pricing information.",
+      isReasoning: false,
+      isOpenWeight: true,
+      contextWindow: 64000,
+      inputModalities: ["text"],
+      outputModalities: ["text"],
+      releaseDate: new Date("2026-01-01T00:00:00Z"),
+      status: "ACTIVE",
+      endpoints: {
+        create: {
+          providerId: provider.id,
+          endpointKey: "epsilon-endpoint",
+          status: "ONLINE",
+          pricingRecords: {
+            create: {
+              sourceId: source.id,
+              inputPricePerMillion: null,
+              outputPricePerMillion: null,
+              observedAt: new Date("2026-11-20T10:00:00Z"),
+            },
+          },
+        },
+      },
+    },
+  });
+  createdModelIds.push(modelE.id);
+
   return {
     labId: lab.id,
     labSlug: lab.slug,
-    providerId: provider.id,
+    providerIds: [provider.id, provider2.id],
     providerSlug: provider.slug,
+    provider2Slug: provider2.slug,
     sourceId: source.id,
     createdModelIds,
   };
@@ -195,10 +299,12 @@ async function cleanupFixtures(ctx: TestFixtureContext): Promise<void> {
     });
   }
 
-  // Delete isolated provider
-  await prisma.provider.deleteMany({
-    where: { id: ctx.providerId },
-  });
+  // Delete isolated providers
+  if (ctx.providerIds.length > 0) {
+    await prisma.provider.deleteMany({
+      where: { id: { in: ctx.providerIds } },
+    });
+  }
 
   // Delete isolated lab
   await prisma.aiLab.deleteMany({
@@ -305,10 +411,10 @@ async function runTests(): Promise<void> {
     const providerFilter = await modelsQueryService.getModelsCatalog({
       provider: fixtures.providerSlug,
     });
-    // Alpha and Beta have ONLINE endpoints with this provider. Gamma has OFFLINE endpoint.
+    // Alpha, Beta, Delta have ONLINE endpoints with this provider. Gamma has OFFLINE endpoint. Epsilon is on provider.
     assert(
-      providerFilter.models.length === 2 &&
-        providerFilter.models.every((m) => m.slug.includes("alpha") || m.slug.includes("beta")),
+      providerFilter.models.length === 4 &&
+        providerFilter.models.every((m) => m.slug.includes("alpha") || m.slug.includes("beta") || m.slug.includes("delta") || m.slug.includes("epsilon")),
       "Provider filter returns models with ONLINE endpoints (excluding OFFLINE endpoints)"
     );
 
@@ -336,8 +442,10 @@ async function runTests(): Promise<void> {
       q: FIXTURE_PREFIX,
     });
     assert(
-      imageInputFilter.models.length === 1 && imageInputFilter.models[0].slug.includes("alpha"),
-      "InputModality filter 'image' matches model with image input"
+      imageInputFilter.models.length === 2 &&
+        imageInputFilter.models.some((m) => m.slug.includes("alpha")) &&
+        imageInputFilter.models.some((m) => m.slug.includes("delta")),
+      "InputModality filter 'image' matches models with image input (Alpha, Delta)"
     );
 
     // -------------------------------------------------------------
@@ -350,8 +458,10 @@ async function runTests(): Promise<void> {
       q: FIXTURE_PREFIX,
     });
     assert(
-      reasoningTrue.models.length === 1 && reasoningTrue.models[0].slug.includes("alpha"),
-      "reasoning=true returns verified reasoning models"
+      reasoningTrue.models.length === 2 &&
+        reasoningTrue.models.some((m) => m.slug.includes("alpha")) &&
+        reasoningTrue.models.some((m) => m.slug.includes("delta")),
+      "reasoning=true returns verified reasoning models (Alpha, Delta)"
     );
 
     const reasoningFalse = await modelsQueryService.getModelsCatalog({
@@ -359,8 +469,10 @@ async function runTests(): Promise<void> {
       q: FIXTURE_PREFIX,
     });
     assert(
-      reasoningFalse.models.length === 1 && reasoningFalse.models[0].slug.includes("beta"),
-      "reasoning=false returns verified non-reasoning models (excluding null)"
+      reasoningFalse.models.length === 2 &&
+        reasoningFalse.models.some((m) => m.slug.includes("beta")) &&
+        reasoningFalse.models.some((m) => m.slug.includes("epsilon")),
+      "reasoning=false returns verified non-reasoning models (Beta, Epsilon, excluding null Gamma)"
     );
 
     const openWeightsTrue = await modelsQueryService.getModelsCatalog({
@@ -368,8 +480,11 @@ async function runTests(): Promise<void> {
       q: FIXTURE_PREFIX,
     });
     assert(
-      openWeightsTrue.models.length === 1 && openWeightsTrue.models[0].slug.includes("beta"),
-      "openWeights=true returns open weight models"
+      openWeightsTrue.models.length === 3 &&
+        openWeightsTrue.models.some((m) => m.slug.includes("beta")) &&
+        openWeightsTrue.models.some((m) => m.slug.includes("delta")) &&
+        openWeightsTrue.models.some((m) => m.slug.includes("epsilon")),
+      "openWeights=true returns open weight models (Beta, Delta, Epsilon)"
     );
 
     const openWeightsFalse = await modelsQueryService.getModelsCatalog({
@@ -378,7 +493,7 @@ async function runTests(): Promise<void> {
     });
     assert(
       openWeightsFalse.models.length === 1 && openWeightsFalse.models[0].slug.includes("alpha"),
-      "openWeights=false returns closed weight models (excluding null)"
+      "openWeights=false returns closed weight models (Alpha, excluding null Gamma)"
     );
 
     // -------------------------------------------------------------
@@ -396,22 +511,22 @@ async function runTests(): Promise<void> {
     );
 
     const maxContext = await modelsQueryService.getModelsCatalog({
-      maximumContext: 150000,
+      maximumContext: 100000,
       q: FIXTURE_PREFIX,
     });
     assert(
-      maxContext.models.length === 1 && maxContext.models[0].slug.includes("alpha"),
-      "maximumContext=150000 matches model with 128k context (excluding null)"
+      maxContext.models.length === 1 && maxContext.models[0].slug.includes("epsilon"),
+      "maximumContext=100000 matches model with 64k context (excluding null)"
     );
 
     const boundedContext = await modelsQueryService.getModelsCatalog({
-      minimumContext: 100000,
+      minimumContext: 120000,
       maximumContext: 300000,
       q: FIXTURE_PREFIX,
     });
     assert(
-      boundedContext.models.length === 2,
-      "Bounded context range [100k, 300k] matches both 128k and 256k models"
+      boundedContext.models.length === 3,
+      "Bounded context range [120k, 300k] matches 128k (Alpha, Delta) and 256k (Beta) models"
     );
 
     // -------------------------------------------------------------
@@ -451,6 +566,25 @@ async function runTests(): Promise<void> {
     assert(
       combinedPrice.models.length === 1 && combinedPrice.models[0].slug.includes("alpha"),
       "Combined input [1, 2] and output [5, 7] matches Alpha ($1.50 in, $6.00 out)"
+    );
+
+    // Multi-provider endpoint resolution and latest pricing verification for Delta
+    const deltaCatalog = await modelsQueryService.getModelsCatalog({
+      q: `${FIXTURE_PREFIX}_model_delta`,
+    });
+    assert(deltaCatalog.models.length === 1, "Delta model retrieved");
+    const deltaModel = deltaCatalog.models[0];
+    assert(
+      deltaModel.pricing.lowestInput?.amount === "2",
+      "Delta model selects latest lowest input price ($2.00 from provider 2, superseding older $5.00)"
+    );
+    assert(
+      deltaModel.pricing.lowestOutput?.amount === "10",
+      "Delta model selects lowest output price across multiple online endpoints ($10.00 from provider 1)"
+    );
+    assert(
+      deltaModel.pricing.availableProviderCount === 2,
+      "Delta model aggregates availableProviderCount: 2 across distinct active providers"
     );
 
     // Offline endpoint price isolation: Gamma had an offline endpoint with $99 price.
@@ -513,7 +647,7 @@ async function runTests(): Promise<void> {
       "sort=context_desc orders largest context first, nulls placed last"
     );
 
-    // Price sorting ascending (free $0 first, then $1.50, then nulls last)
+    // Price sorting: input_price_asc (free $0 first, then $1.50, then $2.00, then nulls last)
     const priceAsc = await modelsQueryService.getModelsCatalog({
       q: FIXTURE_PREFIX,
       sort: "input_price_asc",
@@ -521,20 +655,104 @@ async function runTests(): Promise<void> {
     assert(
       priceAsc.models[0].slug.includes("beta") &&
         priceAsc.models[1].slug.includes("alpha") &&
-        priceAsc.models[2].slug.includes("gamma"),
-      "sort=input_price_asc orders free ($0) first, then $1.50, with unpriced models placed last"
+        priceAsc.models[2].slug.includes("delta") &&
+        priceAsc.models[3].pricing.lowestInput === null &&
+        priceAsc.models[4].pricing.lowestInput === null,
+      "sort=input_price_asc orders free ($0) -> Alpha ($1.50) -> Delta ($2.00) with unpriced models placed last"
     );
 
-    // Price sorting descending (highest price first, nulls last)
+    // Price sorting: input_price_desc (highest price first, nulls last)
     const priceDesc = await modelsQueryService.getModelsCatalog({
       q: FIXTURE_PREFIX,
       sort: "input_price_desc",
     });
     assert(
-      priceDesc.models[0].slug.includes("alpha") &&
-        priceDesc.models[1].slug.includes("beta") &&
-        priceDesc.models[2].slug.includes("gamma"),
-      "sort=input_price_desc orders $1.50 first, then $0.00, with unpriced models placed last"
+      priceDesc.models[0].slug.includes("delta") &&
+        priceDesc.models[1].slug.includes("alpha") &&
+        priceDesc.models[2].slug.includes("beta") &&
+        priceDesc.models[3].pricing.lowestInput === null &&
+        priceDesc.models[4].pricing.lowestInput === null,
+      "sort=input_price_desc orders Delta ($2.00) -> Alpha ($1.50) -> free ($0) with unpriced models placed last"
+    );
+
+    // Price sorting: output_price_asc ($0.00 Beta -> $6.00 Alpha -> $10.00 Delta -> unpriced last)
+    const outPriceAsc = await modelsQueryService.getModelsCatalog({
+      q: FIXTURE_PREFIX,
+      sort: "output_price_asc",
+    });
+    assert(
+      outPriceAsc.models[0].slug.includes("beta") &&
+        outPriceAsc.models[1].slug.includes("alpha") &&
+        outPriceAsc.models[2].slug.includes("delta") &&
+        outPriceAsc.models[3].pricing.lowestOutput === null &&
+        outPriceAsc.models[4].pricing.lowestOutput === null,
+      "sort=output_price_asc orders Beta ($0) -> Alpha ($6.00) -> Delta ($10.00) with unpriced models last"
+    );
+
+    // Price sorting: output_price_desc ($10.00 Delta -> $6.00 Alpha -> $0.00 Beta -> unpriced last)
+    const outPriceDesc = await modelsQueryService.getModelsCatalog({
+      q: FIXTURE_PREFIX,
+      sort: "output_price_desc",
+    });
+    assert(
+      outPriceDesc.models[0].slug.includes("delta") &&
+        outPriceDesc.models[1].slug.includes("alpha") &&
+        outPriceDesc.models[2].slug.includes("beta") &&
+        outPriceDesc.models[3].pricing.lowestOutput === null &&
+        outPriceDesc.models[4].pricing.lowestOutput === null,
+      "sort=output_price_desc orders Delta ($10.00) -> Alpha ($6.00) -> Beta ($0) with unpriced models last"
+    );
+
+    // -------------------------------------------------------------
+    // 8B. Combined Filters with Database Price Sorting
+    // -------------------------------------------------------------
+    console.log("\n8B. Testing Combined Filters with Database Price Sorting...");
+
+    // Lab filter + input_price_asc
+    const labPriceSort = await modelsQueryService.getModelsCatalog({
+      lab: fixtures.labSlug,
+      sort: "input_price_asc",
+    });
+    assert(
+      labPriceSort.models.length === 1 && labPriceSort.models[0].slug.includes("alpha"),
+      "Lab filter + price sort correctly isolates Alpha"
+    );
+
+    // Provider filter + input_price_asc
+    const provider2PriceSort = await modelsQueryService.getModelsCatalog({
+      provider: fixtures.provider2Slug,
+      sort: "input_price_asc",
+    });
+    assert(
+      provider2PriceSort.models.length === 1 && provider2PriceSort.models[0].slug.includes("delta"),
+      "Provider filter + price sort isolates Delta on secondary cloud"
+    );
+
+    // Modality filter + input_price_asc
+    const modalityPriceSort = await modelsQueryService.getModelsCatalog({
+      inputModality: "image",
+      q: FIXTURE_PREFIX,
+      sort: "input_price_asc",
+    });
+    assert(
+      modalityPriceSort.models.length === 2 &&
+        modalityPriceSort.models[0].slug.includes("alpha") &&
+        modalityPriceSort.models[1].slug.includes("delta"),
+      "Modality filter (image) + price sort orders Alpha ($1.50) then Delta ($2.00)"
+    );
+
+    // Price bounds + price sort
+    const boundsPriceSort = await modelsQueryService.getModelsCatalog({
+      minimumInputPrice: 1.0,
+      maximumInputPrice: 2.5,
+      q: FIXTURE_PREFIX,
+      sort: "input_price_asc",
+    });
+    assert(
+      boundsPriceSort.models.length === 2 &&
+        boundsPriceSort.models[0].slug.includes("alpha") &&
+        boundsPriceSort.models[1].slug.includes("delta"),
+      "Price bounds [1.0, 2.5] + price sort returns Alpha ($1.50) then Delta ($2.00)"
     );
 
     // -------------------------------------------------------------
@@ -546,10 +764,11 @@ async function runTests(): Promise<void> {
       page: 1,
       limit: 2,
       q: FIXTURE_PREFIX,
+      sort: "input_price_asc",
     });
     assert(pagedResult.models.length === 2, "limit=2 returns exactly 2 records");
-    assert(pagedResult.pagination.total === 3, "total indicates 3 total matching models");
-    assert(pagedResult.pagination.totalPages === 2, "totalPages calculated as 2");
+    assert(pagedResult.pagination.total === 5, "total indicates 5 total matching models");
+    assert(pagedResult.pagination.totalPages === 3, "totalPages calculated as 3");
     assert(pagedResult.pagination.hasNextPage === true, "hasNextPage is true on page 1");
     assert(pagedResult.pagination.hasPreviousPage === false, "hasPreviousPage is false on page 1");
 
@@ -558,14 +777,40 @@ async function runTests(): Promise<void> {
       page: 2,
       limit: 2,
       q: FIXTURE_PREFIX,
+      sort: "input_price_asc",
     });
-    assert(page2Result.models.length === 1, "page=2 returns the remaining 1 model");
-    assert(page2Result.pagination.hasNextPage === false, "hasNextPage is false on last page");
+    assert(page2Result.models.length === 2, "page=2 returns 2 models");
+    assert(page2Result.pagination.hasNextPage === true, "hasNextPage is true on page 2");
     assert(page2Result.pagination.hasPreviousPage === true, "hasPreviousPage is true on page 2");
 
-    // Entity uniqueness
-    const allSlugs = pagedResult.models.map((m) => m.slug);
-    assert(new Set(allSlugs).size === allSlugs.length, "Each canonical model appears exactly once per page");
+    // Page 3
+    const page3Result = await modelsQueryService.getModelsCatalog({
+      page: 3,
+      limit: 2,
+      q: FIXTURE_PREFIX,
+      sort: "input_price_asc",
+    });
+    assert(page3Result.models.length === 1, "page=3 returns the remaining 1 unpriced model");
+    assert(page3Result.pagination.hasNextPage === false, "hasNextPage is false on last page");
+    assert(page3Result.pagination.hasPreviousPage === true, "hasPreviousPage is true on page 3");
+
+    // Page beyond final page (e.g. page 99)
+    const beyondResult = await modelsQueryService.getModelsCatalog({
+      page: 99,
+      limit: 2,
+      q: FIXTURE_PREFIX,
+      sort: "input_price_asc",
+    });
+    assert(beyondResult.models.length === 0, "Page beyond final returns empty models array");
+    assert(beyondResult.pagination.total === 5, "Page beyond final still returns accurate total matching models");
+    assert(beyondResult.pagination.hasNextPage === false, "hasNextPage is false beyond final page");
+
+    // Entity uniqueness and deterministic pagination across pages
+    const page1Slugs = pagedResult.models.map((m) => m.slug);
+    const page2Slugs = page2Result.models.map((m) => m.slug);
+    const page3Slugs = page3Result.models.map((m) => m.slug);
+    const allSlugsCombined = [...page1Slugs, ...page2Slugs, ...page3Slugs];
+    assert(new Set(allSlugsCombined).size === 5, "Deterministic pagination: Exactly 5 unique models across pages with zero duplicates");
 
     // -------------------------------------------------------------
     // 10. Security & Validation Reject Rules

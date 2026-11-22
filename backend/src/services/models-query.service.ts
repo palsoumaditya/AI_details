@@ -307,91 +307,239 @@ export class ModelsQueryService implements IModelsQueryService {
   }
 
   /**
-   * Handles price-based sorting by computing lowest price per model at database level
+   * Builds safe, parameterized SQL WHERE conditions matching buildWhereClause semantics
+   */
+  private buildSqlWhereConditions(query: ModelsCatalogQuery): Prisma.Sql {
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`m.status = 'ACTIVE'::"ModelStatus"`,
+    ];
+
+    // Search query (case-insensitive across name, slug, family, description)
+    if (query.q && query.q.length > 0) {
+      const searchPattern = `%${query.q}%`;
+      conditions.push(
+        Prisma.sql`(
+          m.name ILIKE ${searchPattern} OR
+          m.slug ILIKE ${searchPattern} OR
+          m.family ILIKE ${searchPattern} OR
+          m.description ILIKE ${searchPattern}
+        )`
+      );
+    }
+
+    // AI Lab filter (verified model-to-lab relation)
+    if (query.lab && query.lab.length > 0) {
+      conditions.push(
+        Prisma.sql`EXISTS (
+          SELECT 1 FROM model_labs ml
+          JOIN ai_labs al ON ml."aiLabId" = al.id
+          WHERE ml."modelId" = m.id AND al.slug ILIKE ${query.lab}
+        )`
+      );
+    }
+
+    // Provider filter (only through active online endpoints)
+    if (query.provider && query.provider.length > 0) {
+      conditions.push(
+        Prisma.sql`EXISTS (
+          SELECT 1 FROM model_provider_endpoints mpe
+          JOIN providers p ON mpe."providerId" = p.id
+          WHERE mpe."modelId" = m.id
+            AND mpe.status = 'ONLINE'::"EndpointStatus"
+            AND p.slug ILIKE ${query.provider}
+        )`
+      );
+    }
+
+    // Modality filter (input or output)
+    if (query.modality && query.modality.length > 0) {
+      conditions.push(
+        Prisma.sql`(${query.modality} = ANY(m."inputModalities") OR ${query.modality} = ANY(m."outputModalities"))`
+      );
+    }
+
+    if (query.inputModality && query.inputModality.length > 0) {
+      conditions.push(
+        Prisma.sql`${query.inputModality} = ANY(m."inputModalities")`
+      );
+    }
+
+    if (query.outputModality && query.outputModality.length > 0) {
+      conditions.push(
+        Prisma.sql`${query.outputModality} = ANY(m."outputModalities")`
+      );
+    }
+
+    // Nullable reasoning classification
+    if (query.reasoning !== undefined) {
+      conditions.push(
+        Prisma.sql`m."isReasoning" = ${query.reasoning}`
+      );
+    }
+
+    // Nullable open-weight classification
+    if (query.openWeights !== undefined) {
+      conditions.push(
+        Prisma.sql`m."isOpenWeight" = ${query.openWeights}`
+      );
+    }
+
+    // Context window range
+    if (query.minimumContext !== undefined) {
+      conditions.push(
+        Prisma.sql`m."contextWindow" IS NOT NULL AND m."contextWindow" >= ${query.minimumContext}`
+      );
+    }
+
+    if (query.maximumContext !== undefined) {
+      conditions.push(
+        Prisma.sql`m."contextWindow" IS NOT NULL AND m."contextWindow" <= ${query.maximumContext}`
+      );
+    }
+
+    // Pricing filters (must apply to the SAME pricing record of an eligible endpoint)
+    const hasInputPriceFilter =
+      query.minimumInputPrice !== undefined || query.maximumInputPrice !== undefined;
+    const hasOutputPriceFilter =
+      query.minimumOutputPrice !== undefined || query.maximumOutputPrice !== undefined;
+
+    if (hasInputPriceFilter || hasOutputPriceFilter) {
+      const priceConds: Prisma.Sql[] = [
+        Prisma.sql`mpe_filter."modelId" = m.id`,
+        Prisma.sql`mpe_filter.status = 'ONLINE'::"EndpointStatus"`,
+      ];
+
+      if (query.minimumInputPrice !== undefined) {
+        priceConds.push(
+          Prisma.sql`pr_filter."inputPricePerMillion" IS NOT NULL AND pr_filter."inputPricePerMillion" >= ${query.minimumInputPrice}::numeric`
+        );
+      }
+      if (query.maximumInputPrice !== undefined) {
+        priceConds.push(
+          Prisma.sql`pr_filter."inputPricePerMillion" IS NOT NULL AND pr_filter."inputPricePerMillion" <= ${query.maximumInputPrice}::numeric`
+        );
+      }
+      if (query.minimumOutputPrice !== undefined) {
+        priceConds.push(
+          Prisma.sql`pr_filter."outputPricePerMillion" IS NOT NULL AND pr_filter."outputPricePerMillion" >= ${query.minimumOutputPrice}::numeric`
+        );
+      }
+      if (query.maximumOutputPrice !== undefined) {
+        priceConds.push(
+          Prisma.sql`pr_filter."outputPricePerMillion" IS NOT NULL AND pr_filter."outputPricePerMillion" <= ${query.maximumOutputPrice}::numeric`
+        );
+      }
+
+      conditions.push(
+        Prisma.sql`EXISTS (
+          SELECT 1 FROM model_provider_endpoints mpe_filter
+          JOIN pricing_records pr_filter ON pr_filter."modelProviderEndpointId" = mpe_filter.id
+          WHERE ${Prisma.join(priceConds, " AND ")}
+        )`
+      );
+    }
+
+    return Prisma.join(conditions, " AND ");
+  }
+
+  /**
+   * Handles price-based sorting by computing latest prices, model-level lowest price,
+   * deterministic sorting, and pagination entirely inside PostgreSQL using parameterized SQL.
    */
   private async queryWithPriceSorting(
-    where: Prisma.ModelWhereInput,
+    _where: Prisma.ModelWhereInput,
     query: ModelsCatalogQuery,
     skip: number,
     limit: number
   ): Promise<{ models: ModelCatalogItemDto[]; total: number }> {
-    // 1. Get total matching count
-    const total = await this.db.model.count({ where });
-    if (total === 0) {
-      return { models: [], total: 0 };
+    // 1. Build parameterized WHERE condition SQL
+    const whereSql = this.buildSqlWhereConditions(query);
+
+    // 2. Select appropriate sorting order clause
+    let orderClause: Prisma.Sql;
+    switch (query.sort) {
+      case "input_price_desc":
+        orderClause = Prisma.sql`mlp.min_input_price DESC NULLS LAST, fm.id ASC`;
+        break;
+      case "output_price_asc":
+        orderClause = Prisma.sql`mlp.min_output_price ASC NULLS LAST, fm.id ASC`;
+        break;
+      case "output_price_desc":
+        orderClause = Prisma.sql`mlp.min_output_price DESC NULLS LAST, fm.id ASC`;
+        break;
+      case "input_price_asc":
+      default:
+        orderClause = Prisma.sql`mlp.min_input_price ASC NULLS LAST, fm.id ASC`;
+        break;
     }
 
-    // 2. Fetch all matching model IDs and their endpoints
-    const matchingModels = await this.db.model.findMany({
-      where,
-      select: {
-        id: true,
-        endpoints: {
-          where: { status: "ONLINE" },
-          select: {
-            pricingRecords: {
-              orderBy: { observedAt: "desc" },
-              take: 1,
-              select: {
-                inputPricePerMillion: true,
-                outputPricePerMillion: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    // 3. Execute database-level filtering, pricing aggregation, sorting, and pagination in a single query
+    interface RankedModelRow {
+      total: number;
+      id: string | null;
+    }
 
-    // 3. Compute sort keys using exact Decimal comparisons
-    const isInput =
-      query.sort === "input_price_asc" || query.sort === "input_price_desc";
-    const isAsc =
-      query.sort === "input_price_asc" || query.sort === "output_price_asc";
+    const rows = await this.db.$queryRaw<RankedModelRow[]>(Prisma.sql`
+      WITH filtered_models AS (
+        SELECT m.id
+        FROM models m
+        WHERE ${whereSql}
+      ),
+      total_count_cte AS (
+        SELECT COUNT(*)::int AS total FROM filtered_models
+      ),
+      endpoint_latest_pricing AS (
+        SELECT
+          mpe."modelId",
+          pr."inputPricePerMillion",
+          pr."outputPricePerMillion",
+          ROW_NUMBER() OVER (
+            PARTITION BY mpe.id
+            ORDER BY pr."observedAt" DESC, pr.id DESC
+          ) AS rn
+        FROM filtered_models fm
+        JOIN model_provider_endpoints mpe 
+          ON mpe."modelId" = fm.id AND mpe.status = 'ONLINE'::"EndpointStatus"
+        JOIN pricing_records pr 
+          ON pr."modelProviderEndpointId" = mpe.id
+      ),
+      model_lowest_prices AS (
+        SELECT
+          elp."modelId",
+          MIN(elp."inputPricePerMillion") AS min_input_price,
+          MIN(elp."outputPricePerMillion") AS min_output_price
+        FROM endpoint_latest_pricing elp
+        WHERE elp.rn = 1
+        GROUP BY elp."modelId"
+      ),
+      ranked_models AS (
+        SELECT
+          fm.id,
+          ROW_NUMBER() OVER (ORDER BY ${orderClause}) AS rank_num
+        FROM filtered_models fm
+        LEFT JOIN model_lowest_prices mlp ON mlp."modelId" = fm.id
+        ORDER BY ${orderClause}
+        LIMIT ${limit}
+        OFFSET ${skip}
+      )
+      SELECT
+        tc.total,
+        rm.id
+      FROM total_count_cte tc
+      LEFT JOIN ranked_models rm ON true
+      ORDER BY rm.rank_num ASC NULLS LAST;
+    `);
 
-    const scoredModels = matchingModels.map((m) => {
-      let lowestPrice: Prisma.Decimal | null = null;
-
-      for (const ep of m.endpoints) {
-        const pr = ep.pricingRecords[0];
-        if (!pr) continue;
-
-        const val = isInput ? pr.inputPricePerMillion : pr.outputPricePerMillion;
-        if (val !== null && val !== undefined) {
-          if (lowestPrice === null || val.lessThan(lowestPrice)) {
-            lowestPrice = val;
-          }
-        }
-      }
-
-      return {
-        id: m.id,
-        price: lowestPrice,
-      };
-    });
-
-    // Sort with nulls last
-    scoredModels.sort((a, b) => {
-      if (a.price === null && b.price === null) return a.id.localeCompare(b.id);
-      if (a.price === null) return 1; // nulls last
-      if (b.price === null) return -1; // nulls last
-
-      if (a.price.equals(b.price)) {
-        return a.id.localeCompare(b.id);
-      }
-
-      const cmp = a.price.lessThan(b.price) ? -1 : 1;
-      return isAsc ? cmp : -cmp;
-    });
-
-    // Slice for pagination
-    const pageSlice = scoredModels.slice(skip, skip + limit);
-    const pageIds = pageSlice.map((s) => s.id);
+    const total = rows.length > 0 ? Number(rows[0].total ?? 0) : 0;
+    const pageIds = rows
+      .map((r) => r.id)
+      .filter((id): id is string => id !== null && id !== undefined);
 
     if (pageIds.length === 0) {
       return { models: [], total };
     }
 
-    // Fetch full model objects for the sliced page
+    // 4. Hydrate full model records for ONLY the sliced page (at most limit records)
     const fullRecords = await this.db.model.findMany({
       where: {
         id: { in: pageIds },
