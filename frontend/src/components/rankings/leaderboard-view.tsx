@@ -295,7 +295,7 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
               {benchmark.higherIsBetter ? (
                 <Badge
                   variant="outline"
-                  className="text-xs gap-1.5 py-1 px-2.5 text-emerald-400 border-emerald-500/20 bg-emerald-500/10"
+                  className="text-xs gap-1.5 py-1 px-2.5 text-slate-700 border-slate-200 bg-white"
                 >
                   <TrendingUp className="h-3.5 w-3.5" />
                   <span>Higher is better</span>
@@ -303,7 +303,7 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
               ) : (
                 <Badge
                   variant="outline"
-                  className="text-xs gap-1.5 py-1 px-2.5 text-sky-400 border-sky-500/20 bg-sky-500/10"
+                  className="text-xs gap-1.5 py-1 px-2.5 text-slate-700 border-slate-200 bg-white"
                 >
                   <TrendingDown className="h-3.5 w-3.5" />
                   <span>Lower is better</span>

@@ -40,7 +40,7 @@ export function BenchmarkCard({ benchmark }: BenchmarkCardProps) {
           {/* Header with Title and Category */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700 border border-amber-200 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-200 shadow-2xs">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-800 border border-slate-200 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-200 shadow-2xs">
                 <Trophy className="h-4.5 w-4.5" />
               </div>
               <div>
@@ -78,12 +78,12 @@ export function BenchmarkCard({ benchmark }: BenchmarkCardProps) {
             </Badge>
 
             {benchmark.higherIsBetter ? (
-              <Badge variant="outline" className="text-[11px] gap-1 text-emerald-400 border-emerald-500/20 bg-emerald-500/10">
+              <Badge variant="outline" className="text-[11px] gap-1 text-slate-700 border-slate-200 bg-white">
                 <TrendingUp className="h-3 w-3" />
                 <span>Higher is better</span>
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-[11px] gap-1 text-sky-400 border-sky-500/20 bg-sky-500/10">
+              <Badge variant="outline" className="text-[11px] gap-1 text-slate-700 border-slate-200 bg-white">
                 <TrendingDown className="h-3 w-3" />
                 <span>Lower is better</span>
               </Badge>

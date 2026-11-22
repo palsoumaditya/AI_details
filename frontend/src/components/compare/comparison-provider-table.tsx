@@ -67,7 +67,7 @@ export function ComparisonProviderTable({ models }: ComparisonProviderTableProps
                           {ep.provider.name}
                         </span>
                         {isOnline ? (
-                          <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                          <span className="text-[10px] text-slate-700 font-medium flex items-center gap-1">
                             <CheckCircle2 className="h-2.5 w-2.5" /> Online
                           </span>
                         ) : (

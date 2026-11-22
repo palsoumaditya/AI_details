@@ -53,24 +53,24 @@ export function LeaderboardTable({
   const renderRankBadge = (rank: number) => {
     if (rank === 1) {
       return (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-xs">
-          <Trophy className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900 text-white border border-slate-900 shadow-xs">
+          <Trophy className="h-3.5 w-3.5 text-white shrink-0" />
           <span>#1</span>
         </div>
       );
     }
     if (rank === 2) {
       return (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-xs">
-          <Medal className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-300 shadow-xs">
+          <Medal className="h-3.5 w-3.5 text-slate-600 shrink-0" />
           <span>#2</span>
         </div>
       );
     }
     if (rank === 3) {
       return (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100/50 text-amber-900 border border-amber-300 shadow-xs">
-          <Medal className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white text-slate-700 border border-slate-200 shadow-xs">
+          <Medal className="h-3.5 w-3.5 text-slate-500 shrink-0" />
           <span>#3</span>
         </div>
       );
@@ -86,7 +86,7 @@ export function LeaderboardTable({
     <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-xs">
       <table className="w-full text-left text-sm border-collapse">
         <thead>
-          <tr className="border-b border-border bg-slate-50/80 text-text-secondary text-xs uppercase tracking-wider font-mono">
+          <tr className="border-b border-border bg-white text-text-secondary text-xs uppercase tracking-wider font-mono">
             <th className="py-3 px-4 w-20 text-center">Rank</th>
             <th className="py-3 px-4 min-w-[200px]">Model</th>
             <th className="py-3 px-4 min-w-[140px]">AI Lab</th>
@@ -99,13 +99,10 @@ export function LeaderboardTable({
         </thead>
         <tbody className="divide-y divide-border/60">
           {rankings.map((item, idx) => {
-            const isTop3 = item.rank <= 3;
             return (
               <tr
                 key={`${item.model.id}-${item.rank}-${idx}`}
-                className={`transition-colors hover:bg-slate-50/80 ${
-                  isTop3 ? "bg-slate-50/30" : ""
-                }`}
+                className="transition-colors hover:bg-slate-100/60"
               >
                 {/* Rank */}
                 <td className="py-3.5 px-4 text-center whitespace-nowrap">
@@ -130,7 +127,7 @@ export function LeaderboardTable({
                       {item.model.isReasoning && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] py-0 px-1.5 gap-1 bg-purple-50 text-purple-700 border-purple-200"
+                          className="text-[10px] py-0 px-1.5 gap-1 bg-slate-100 text-slate-700 border-slate-200"
                         >
                           <Brain className="h-2.5 w-2.5" />
                           <span>Reasoning</span>
@@ -139,7 +136,7 @@ export function LeaderboardTable({
                       {item.model.isOpenWeight && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] py-0 px-1.5 gap-1 bg-emerald-50 text-emerald-700 border-emerald-200"
+                          className="text-[10px] py-0 px-1.5 gap-1 bg-slate-100 text-slate-700 border-slate-200"
                         >
                           <Code className="h-2.5 w-2.5" />
                           <span>Open</span>

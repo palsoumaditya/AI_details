@@ -180,7 +180,7 @@ export function RankingsOverview() {
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-text-secondary">
-          <Layers className="h-4 w-4 text-emerald-400" />
+          <Layers className="h-4 w-4 text-slate-700" />
           <span>Evaluated Models:</span>
           <span className="font-mono font-bold text-text-primary">
             {totalEvaluatedModels}

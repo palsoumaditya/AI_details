@@ -26,7 +26,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-200 shadow-2xs">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-800 border border-slate-200 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-200 shadow-2xs">
                 <Server className="h-4 w-4" />
               </div>
               <div>
@@ -62,10 +62,10 @@ export function ProviderCard({ provider }: ProviderCardProps) {
               </span>
             </Badge>
 
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-surface-elevated text-text-secondary border border-border">
+            <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-md bg-surface border border-border text-slate-700">
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  isOnline ? "bg-success" : "bg-text-tertiary"
+                  isOnline ? "bg-slate-900" : "bg-slate-400"
                 }`}
               />
               <span>
@@ -77,7 +77,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
             {provider.supportedInputModalities?.slice(0, 3).map((mod) => (
               <span
                 key={mod}
-                className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-text-tertiary"
+                className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/60"
               >
                 {mod}
               </span>

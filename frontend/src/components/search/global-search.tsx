@@ -200,8 +200,8 @@ export function GlobalSearch({
       <div className="relative">
         <Search
           className={cn(
-            "absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none transition-colors",
-            isHero ? "h-5 w-5" : "h-4 w-4"
+            "absolute top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none transition-colors",
+            isHero ? "h-5 w-5 left-3.5" : "h-3.5 w-3.5 left-2.5"
           )}
           aria-hidden="true"
         />
@@ -224,7 +224,7 @@ export function GlobalSearch({
           className={cn(
             "flex w-full rounded-xl border border-border bg-surface text-text-primary placeholder:text-text-tertiary",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:border-transparent transition-all",
-            isHero ? "h-12 pl-11 pr-20 text-base" : "h-10 pl-10 pr-16 text-sm"
+            isHero ? "h-12 pl-11 pr-20 text-base" : "h-8 pl-8 pr-12 text-xs rounded-lg"
           )}
         />
 
