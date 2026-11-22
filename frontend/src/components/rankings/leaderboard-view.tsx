@@ -267,6 +267,9 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
                   <h1 className="text-2xl font-bold tracking-tight text-text-primary">
                     {benchmark.name}
                   </h1>
+                  <span className="homemade-apple-regular text-sm text-slate-500 select-none">
+                    ~ standard competition ranking
+                  </span>
                   <Badge variant="accent" className="text-[10px] uppercase font-mono">
                     {benchmark.category}
                   </Badge>

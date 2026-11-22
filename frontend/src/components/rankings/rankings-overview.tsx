@@ -166,6 +166,7 @@ export function RankingsOverview() {
         title="Rankings & Benchmarks"
         description="Explore standardized AI model evaluations across reasoning, coding, knowledge, and throughput leaderboards."
         badge="Leaderboards"
+        annotation="verified benchmarks & leaderboards"
       />
 
       {/* Directory Metrics & Summary Stats */}

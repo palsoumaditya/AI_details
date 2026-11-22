@@ -34,7 +34,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       {/* Right side wordmark */}
       <div className="hidden md:flex items-center gap-2 text-sm text-text-tertiary">
         <span className="font-medium">
-          One<span className="text-accent">Atlas</span>
+          AI <span className="text-accent">Details</span>
         </span>
       </div>
     </header>

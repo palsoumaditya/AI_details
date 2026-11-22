@@ -284,6 +284,7 @@ export function ModelCatalogView() {
         title="Explore AI Models"
         description="Unified developer intelligence catalog for frontier and open-weight models across major AI research labs and inference providers."
         badge="Discovery"
+        annotation="frontier & open-weight intelligence"
       >
         {pagination && (
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-text-secondary bg-surface-elevated border border-border px-3 py-1.5 rounded-lg">

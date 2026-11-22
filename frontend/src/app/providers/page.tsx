@@ -5,7 +5,7 @@ import { ProviderCardSkeleton } from "@/components/providers/provider-card";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = {
-  title: "Inference Providers & Endpoints | OneAtlas.dev",
+  title: "Inference Providers & Endpoints | AI Details",
   description:
     "Explore inference providers including OpenAI, Anthropic, Google Cloud Vertex, Together AI, Groq, and OpenRouter — compare endpoints, availability, and hosted models.",
 };

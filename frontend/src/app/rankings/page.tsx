@@ -5,7 +5,7 @@ import { BenchmarkCardSkeleton } from "@/components/rankings/benchmark-card";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = {
-  title: "AI Model Rankings & Benchmark Leaderboards | OneAtlas.dev",
+  title: "AI Model Rankings & Benchmark Leaderboards | AI Details",
   description:
     "Explore standardized AI model evaluations across reasoning, coding, knowledge, and throughput benchmarks including MMLU-Pro, LiveCodeBench, GPQA, and speed leaderboards.",
 };

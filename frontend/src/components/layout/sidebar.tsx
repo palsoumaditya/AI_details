@@ -60,11 +60,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex items-center justify-between h-14 px-4 border-b border-border shrink-0">
           <Link href="/" className="flex items-center gap-2.5" onClick={onClose}>
             <div className="h-7 w-7 rounded-lg bg-slate-900 flex items-center justify-center shadow-xs">
-              <span className="text-white font-bold text-xs tracking-tight">OA</span>
+              <span className="text-white font-bold text-xs tracking-tight">AD</span>
             </div>
-            <span className="font-semibold text-slate-900 text-sm tracking-tight">
-              One<span className="text-accent">Atlas</span>
-            </span>
+            <div>
+              <span className="font-semibold text-slate-900 text-sm tracking-tight block leading-tight">
+                AI <span className="text-accent">Details</span>
+              </span>
+              <span className="homemade-apple-regular text-[10px] text-slate-500 block leading-tight">
+                model intelligence
+              </span>
+            </div>
           </Link>
           <button
             onClick={onClose}
@@ -107,9 +112,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-border shrink-0">
+        <div className="px-4 py-3 border-t border-border shrink-0 space-y-0.5">
           <p className="text-[10px] text-text-tertiary">
-            OneAtlas v0.1.0 · AI Intelligence Platform
+            AI Details v0.1.0 · AI Intelligence
+          </p>
+          <p className="homemade-apple-regular text-[11px] text-slate-500">
+            the whole ecosystem, really
           </p>
         </div>
       </aside>

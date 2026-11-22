@@ -14,7 +14,7 @@ export default function NotFound() {
       </p>
       <Link href="/">
         <Button variant="outline" size="sm">
-          Return to OneAtlas Home
+          Return to AI Details Home
         </Button>
       </Link>
     </div>

@@ -206,6 +206,7 @@ export function ProviderDirectoryView() {
         title="Inference Providers"
         description="Discover and evaluate AI execution infrastructure, cloud providers, hardware-accelerated endpoints, and model routing aggregators."
         badge="Infrastructure"
+        annotation="inference endpoints & pricing"
       >
         {pagination && (
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-text-secondary bg-surface-elevated border border-border px-3 py-1.5 rounded-lg">

@@ -59,7 +59,12 @@ export default function HomePage() {
       {/* Hero */}
       <section className="pt-8 pb-12 md:pt-16 md:pb-16">
         <div className="space-y-4 max-w-2xl">
-          <Badge variant="accent">AI Model Intelligence</Badge>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Badge variant="accent">AI Model Intelligence</Badge>
+            <span className="homemade-apple-regular text-sm text-slate-600 select-none">
+              fair warning: live intelligence &#125;
+            </span>
+          </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-text-primary leading-tight">
             Explore the AI model ecosystem.
           </h1>
@@ -85,9 +90,14 @@ export default function HomePage() {
 
       {/* Capability sections */}
       <section className="pb-16">
-        <h2 className="text-sm font-medium text-text-tertiary uppercase tracking-wider mb-4">
-          Platform
-        </h2>
+        <div className="flex items-baseline gap-2.5 mb-4 flex-wrap">
+          <h2 className="text-sm font-medium text-text-tertiary uppercase tracking-wider">
+            Platform
+          </h2>
+          <span className="homemade-apple-regular text-xs text-slate-500 select-none">
+            — the whole platform, really
+          </span>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {PLATFORM_SECTIONS.map((section) => (
             <Link key={section.href} href={section.href} className="group">
@@ -116,9 +126,14 @@ export default function HomePage() {
 
       {/* Data sources */}
       <section className="pb-16">
-        <h2 className="text-sm font-medium text-text-tertiary uppercase tracking-wider mb-4">
-          Integrated Data Sources
-        </h2>
+        <div className="flex items-baseline gap-2.5 mb-4 flex-wrap">
+          <h2 className="text-sm font-medium text-text-tertiary uppercase tracking-wider">
+            Integrated Data Sources
+          </h2>
+          <span className="homemade-apple-regular text-xs text-slate-500 select-none">
+            — verified feeds
+          </span>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { name: "OpenRouter", status: "Connected" },

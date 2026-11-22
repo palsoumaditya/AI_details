@@ -5,7 +5,7 @@ import { ComparisonView } from "@/components/compare";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
-  title: "Model Comparison — Technical Specs, Pricing & Benchmarks | OneAtlas.dev",
+  title: "Model Comparison — Technical Specs, Pricing & Benchmarks | AI Details",
   description:
     "Compare AI models side-by-side: context windows, max output limits, input and output pricing per 1M tokens, benchmark evaluations, and multi-provider availability.",
 };
@@ -33,6 +33,7 @@ export default function ComparePage() {
         title="Model Comparison Engine"
         description="Compare technical specifications, token context limits, inference pricing, and standardized benchmark evaluations across frontier and open-weight AI models side by side."
         badge="Side-by-Side"
+        annotation="side-by-side spec matrix"
       />
 
       <Suspense fallback={<ComparisonLoadingFallback />}>
