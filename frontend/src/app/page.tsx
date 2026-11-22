@@ -25,7 +25,7 @@ const PLATFORM_SECTIONS = [
       "Compare capabilities, pricing, context windows, and benchmarks across models side by side.",
     href: "/compare",
     icon: <GitCompareArrows className="h-5 w-5" />,
-    badge: "Coming Soon",
+    badge: "Live",
   },
   {
     title: "Rankings & Benchmarks",
@@ -33,7 +33,7 @@ const PLATFORM_SECTIONS = [
       "Explore model rankings based on standardized benchmarks including GPQA, MMLU-Pro, and LiveCodeBench.",
     href: "/rankings",
     icon: <Trophy className="h-5 w-5" />,
-    badge: "Coming Soon",
+    badge: "Live",
   },
   {
     title: "Inference Providers",
