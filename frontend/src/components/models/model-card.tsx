@@ -106,7 +106,7 @@ export function ModelCard({ model }: ModelCardProps) {
           {model.inputModalities.map((modality) => (
             <span
               key={modality}
-              className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-text-tertiary"
+              className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/60"
             >
               {modality}
             </span>

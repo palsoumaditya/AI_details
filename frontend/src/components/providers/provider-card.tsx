@@ -26,7 +26,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-elevated text-accent group-hover:bg-accent-muted transition-colors">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-200 shadow-2xs">
                 <Server className="h-4 w-4" />
               </div>
               <div>

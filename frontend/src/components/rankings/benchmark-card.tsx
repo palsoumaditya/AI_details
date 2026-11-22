@@ -40,7 +40,7 @@ export function BenchmarkCard({ benchmark }: BenchmarkCardProps) {
           {/* Header with Title and Category */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-elevated text-accent group-hover:bg-accent-muted transition-colors">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700 border border-amber-200 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-200 shadow-2xs">
                 <Trophy className="h-4.5 w-4.5" />
               </div>
               <div>

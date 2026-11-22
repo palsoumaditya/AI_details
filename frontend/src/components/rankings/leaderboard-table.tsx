@@ -53,24 +53,24 @@ export function LeaderboardTable({
   const renderRankBadge = (rank: number) => {
     if (rank === 1) {
       return (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-xs">
-          <Trophy className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-xs">
+          <Trophy className="h-3.5 w-3.5 text-amber-600 shrink-0" />
           <span>#1</span>
         </div>
       );
     }
     if (rank === 2) {
       return (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-300/10 text-slate-200 border border-slate-300/30">
-          <Medal className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-xs">
+          <Medal className="h-3.5 w-3.5 text-slate-500 shrink-0" />
           <span>#2</span>
         </div>
       );
     }
     if (rank === 3) {
       return (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-700/15 text-amber-500 border border-amber-700/30">
-          <Medal className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100/50 text-amber-900 border border-amber-300 shadow-xs">
+          <Medal className="h-3.5 w-3.5 text-amber-700 shrink-0" />
           <span>#3</span>
         </div>
       );
@@ -86,7 +86,7 @@ export function LeaderboardTable({
     <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-xs">
       <table className="w-full text-left text-sm border-collapse">
         <thead>
-          <tr className="border-b border-border bg-surface-elevated/40 text-text-tertiary text-xs uppercase tracking-wider font-mono">
+          <tr className="border-b border-border bg-slate-50/80 text-text-secondary text-xs uppercase tracking-wider font-mono">
             <th className="py-3 px-4 w-20 text-center">Rank</th>
             <th className="py-3 px-4 min-w-[200px]">Model</th>
             <th className="py-3 px-4 min-w-[140px]">AI Lab</th>
@@ -103,8 +103,8 @@ export function LeaderboardTable({
             return (
               <tr
                 key={`${item.model.id}-${item.rank}-${idx}`}
-                className={`transition-colors hover:bg-surface-elevated/50 ${
-                  isTop3 ? "bg-surface-elevated/15" : ""
+                className={`transition-colors hover:bg-slate-50/80 ${
+                  isTop3 ? "bg-slate-50/30" : ""
                 }`}
               >
                 {/* Rank */}
@@ -130,7 +130,7 @@ export function LeaderboardTable({
                       {item.model.isReasoning && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] py-0 px-1.5 gap-1 bg-purple-500/10 text-purple-400 border-purple-500/20"
+                          className="text-[10px] py-0 px-1.5 gap-1 bg-purple-50 text-purple-700 border-purple-200"
                         >
                           <Brain className="h-2.5 w-2.5" />
                           <span>Reasoning</span>
@@ -139,7 +139,7 @@ export function LeaderboardTable({
                       {item.model.isOpenWeight && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] py-0 px-1.5 gap-1 text-emerald-400 border-emerald-500/20"
+                          className="text-[10px] py-0 px-1.5 gap-1 bg-emerald-50 text-emerald-700 border-emerald-200"
                         >
                           <Code className="h-2.5 w-2.5" />
                           <span>Open</span>

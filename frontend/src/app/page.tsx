@@ -93,7 +93,7 @@ export default function HomePage() {
             <Link key={section.href} href={section.href} className="group">
               <Card hover className="h-full flex flex-col">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-elevated text-text-secondary group-hover:text-accent transition-colors">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 border border-slate-200/60 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-200 shadow-2xs">
                     {section.icon}
                   </div>
                   <Badge
