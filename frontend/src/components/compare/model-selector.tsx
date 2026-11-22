@@ -24,6 +24,15 @@ export interface ModelSelectorProps {
   onClearAll: () => void;
 }
 
+export interface ComparisonPreset {
+  id: string;
+  name: string;
+  description: string;
+  slugs: string[];
+  available: boolean;
+  unavailableReason?: string;
+}
+
 export function ModelSelector({
   selectedSlugs,
   onAddSlug,
@@ -35,38 +44,106 @@ export function ModelSelector({
   const [results, setResults] = useState<ModelCatalogItemDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [presets, setPresets] = useState<{ name: string; slugs: string[] }[]>([]);
+  const [presets, setPresets] = useState<ComparisonPreset[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isMaxReached = selectedSlugs.length >= 4;
 
-  // Dynamically load suggestions from available models in catalog
+  // Dynamically load database-backed presets from live catalog
   useEffect(() => {
     let ignore = false;
-    async function loadSuggestions() {
+    async function loadPresets() {
       try {
-        const res = await fetch("/api/v1/models?limit=4");
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && Array.isArray(json.data) && json.data.length >= 2 && !ignore) {
-            const list: { name: string; slugs: string[] }[] = [];
-            list.push({
-              name: `${json.data[0].name} vs ${json.data[1].name}`,
-              slugs: [json.data[0].slug, json.data[1].slug],
-            });
-            if (json.data.length >= 4) {
-              list.push({
-                name: `${json.data[2].name} vs ${json.data[3].name}`,
-                slugs: [json.data[2].slug, json.data[3].slug],
-              });
-            }
-            setPresets(list);
-          }
+        const [leadersRes, reasoningRes, openWeightsRes] = await Promise.all([
+          fetch("/api/v1/models?limit=2"),
+          fetch("/api/v1/models?reasoning=true&limit=2"),
+          fetch("/api/v1/models?openWeights=true&limit=2"),
+        ]);
+
+        const leadersJson = leadersRes.ok ? await leadersRes.json() : null;
+        const reasoningJson = reasoningRes.ok ? await reasoningRes.json() : null;
+        const openWeightsJson = openWeightsRes.ok ? await openWeightsRes.json() : null;
+
+        if (ignore) return;
+
+        const dynamicPresets: ComparisonPreset[] = [];
+
+        // 1. Catalog Leaders Preset
+        const leaders =
+          leadersJson?.success && Array.isArray(leadersJson.data) ? leadersJson.data : [];
+        if (leaders.length >= 2) {
+          dynamicPresets.push({
+            id: "catalog-leaders",
+            name: `${leaders[0].name} vs ${leaders[1].name}`,
+            description: "Catalog Leaders",
+            slugs: [leaders[0].slug, leaders[1].slug],
+            available: true,
+          });
+        } else {
+          dynamicPresets.push({
+            id: "catalog-leaders",
+            name: "Catalog Leaders",
+            description: "Catalog Leaders",
+            slugs: [],
+            available: false,
+            unavailableReason: "Requires at least 2 models in the database catalog",
+          });
         }
+
+        // 2. Reasoning Models Preset
+        const reasoningModels =
+          reasoningJson?.success && Array.isArray(reasoningJson.data)
+            ? reasoningJson.data
+            : [];
+        if (reasoningModels.length >= 2) {
+          dynamicPresets.push({
+            id: "reasoning-models",
+            name: `${reasoningModels[0].name} vs ${reasoningModels[1].name}`,
+            description: "Reasoning Models",
+            slugs: [reasoningModels[0].slug, reasoningModels[1].slug],
+            available: true,
+          });
+        } else {
+          dynamicPresets.push({
+            id: "reasoning-models",
+            name: "Reasoning Models",
+            description: "Reasoning Models",
+            slugs: [],
+            available: false,
+            unavailableReason: "Requires at least 2 reasoning models in the database catalog",
+          });
+        }
+
+        // 3. Open Weights Preset
+        const openWeightModels =
+          openWeightsJson?.success && Array.isArray(openWeightsJson.data)
+            ? openWeightsJson.data
+            : [];
+        if (openWeightModels.length >= 2) {
+          dynamicPresets.push({
+            id: "open-weights",
+            name: `${openWeightModels[0].name} vs ${openWeightModels[1].name}`,
+            description: "Open Weights",
+            slugs: [openWeightModels[0].slug, openWeightModels[1].slug],
+            available: true,
+          });
+        } else {
+          dynamicPresets.push({
+            id: "open-weights",
+            name: "Open Weights",
+            description: "Open Weights",
+            slugs: [],
+            available: false,
+            unavailableReason: "Requires at least 2 open-weight models in the database catalog",
+          });
+        }
+
+        setPresets(dynamicPresets);
       } catch {
         // Silently ignore catalog load issues
       }
     }
-    loadSuggestions();
+
+    loadPresets();
     return () => {
       ignore = true;
     };
@@ -83,7 +160,7 @@ export function ModelSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Debounced search query
+  // Debounced search query against live database
   useEffect(() => {
     if (!query.trim()) {
       return;
@@ -214,7 +291,7 @@ export function ModelSelector({
             placeholder={
               isMaxReached
                 ? "Maximum 4 models selected (remove one to add another)"
-                : "Search model by name or slug to add (e.g. gpt-4o, claude-3-5-sonnet)..."
+                : "Search model by name or slug to add (e.g. gemini, astra, mistral)..."
             }
             disabled={isMaxReached}
             className="pl-9 h-10 text-xs sm:text-sm bg-surface-elevated"
@@ -284,23 +361,42 @@ export function ModelSelector({
         )}
       </div>
 
-      {/* Suggested Quick Comparisons */}
+      {/* Database-Backed Preset Comparisons */}
       {presets.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
           <span className="text-text-tertiary flex items-center gap-1">
             <Sparkles className="h-3 w-3 text-accent" />
-            <span>Suggested:</span>
+            <span>Presets:</span>
           </span>
-          {presets.map((preset) => (
-            <button
-              key={preset.name}
-              type="button"
-              onClick={() => onSelectPreset(preset.slugs)}
-              className="text-[11px] text-text-secondary hover:text-accent bg-surface-elevated hover:bg-surface border border-border px-2.5 py-1 rounded-md transition-colors"
-            >
-              {preset.name}
-            </button>
-          ))}
+          {presets.map((preset) => {
+            if (!preset.available) {
+              return (
+                <span
+                  key={preset.id}
+                  title={preset.unavailableReason}
+                  className="text-[11px] text-text-tertiary opacity-50 bg-surface-elevated/40 border border-border/50 px-2.5 py-1 rounded-md cursor-not-allowed flex items-center gap-1"
+                >
+                  <span>{preset.description}</span>
+                  <span className="text-[10px] italic">(Unavailable)</span>
+                </span>
+              );
+            }
+
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => onSelectPreset(preset.slugs)}
+                className="text-[11px] text-text-secondary hover:text-accent bg-surface-elevated hover:bg-surface border border-border px-2.5 py-1 rounded-md transition-colors"
+                title={`Compare ${preset.name}`}
+              >
+                <span className="font-semibold text-accent/80 mr-1.5">
+                  {preset.description}:
+                </span>
+                <span>{preset.name}</span>
+              </button>
+            );
+          })}
         </div>
       )}
     </Card>

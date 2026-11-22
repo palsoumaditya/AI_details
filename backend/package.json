@@ -28,6 +28,7 @@
     "sync:all": "tsx scripts/sync-all-sources.ts",
     "test:openrouter": "tsx scripts/test-openrouter.ts",
     "test:compare": "tsx scripts/test-compare-query.ts",
+    "test:compare-workflow": "tsx scripts/test-comparison-workflow.ts",
     "test:api": "tsx scripts/test-api-foundation.ts",
     "test:modelsdev": "tsx scripts/test-modelsdev.ts",
     "test:models-query": "tsx scripts/test-models-query.ts",

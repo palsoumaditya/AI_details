@@ -29,6 +29,7 @@
     "test:models-query": "npm run test:models-query -w @oneatlas/backend",
     "test:model-detail": "npm run test:model-detail -w @oneatlas/backend",
     "test:compare": "npm run test:compare -w @oneatlas/backend",
+    "test:compare-workflow": "npm run test:compare-workflow -w @oneatlas/backend",
     "test:providers-query": "npm run test:providers-query -w @oneatlas/backend",
     "test:labs-query": "npm run test:labs-query -w @oneatlas/backend",
     "test:resolution": "npm run test:resolution -w @oneatlas/backend",
