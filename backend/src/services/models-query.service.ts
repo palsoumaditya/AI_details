@@ -18,127 +18,143 @@ import type {
   ModelsCatalogResult,
 } from "./contracts/index";
 import { modelDetailQueryService } from "./model-detail-query.service";
+import { cacheService } from "./cache.service";
 
 /**
- * Model Catalog Query Service (Phase 4B)
+ * Service for querying and discovering AI models across providers.
  *
- * Implements high-performance, parameterized catalog discovery, full-text & field filtering,
- * provider-aware pricing aggregations, sorting, and pagination across canonical AI models.
+ * Handles parameterized filtering (modalities, context window, pricing, labs, providers),
+ * full-text search, multi-provider pricing aggregations, and indexed or price-based pagination.
  */
 export class ModelsQueryService implements IModelsQueryService {
   constructor(private readonly db: PrismaClient = prisma) {}
 
   /**
-   * Primary Catalog Query Method: Search, Filter, Sort, Paginate
+   * Queries the model catalog with filtering, sorting, and pagination.
+   *
+   * Results are cached for 60 seconds keyed by the normalized query parameters.
+   * Supports standard database-indexed sorting (release date, name, context window)
+   * as well as computed lowest-price sorting across active online endpoints.
+   *
+   * @param inputQuery - Raw or partial query parameters from the client.
+   * @returns Paginated catalog items, pagination metadata, and applied filters.
    */
   async getModelsCatalog(inputQuery: ModelsCatalogInputQuery): Promise<ModelsCatalogResult> {
     const query: ModelsCatalogQuery = ModelsCatalogQuerySchema.parse(inputQuery);
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    const skip = (page - 1) * limit;
+    const cacheKey = JSON.stringify(query);
 
-    // 1. Build relational WHERE conditions
-    const where = this.buildWhereClause(query);
+    return cacheService.getOrSet(
+      "models",
+      cacheKey,
+      async () => {
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 20;
+        const skip = (page - 1) * limit;
 
-    // 2. Determine Sorting Strategy
-    const isPriceSort =
-      query.sort === "input_price_asc" ||
-      query.sort === "input_price_desc" ||
-      query.sort === "output_price_asc" ||
-      query.sort === "output_price_desc";
+        const where = this.buildWhereClause(query);
+        const isPriceSort =
+          query.sort === "input_price_asc" ||
+          query.sort === "input_price_desc" ||
+          query.sort === "output_price_asc" ||
+          query.sort === "output_price_desc";
 
-    let models: ModelCatalogItemDto[] = [];
-    let total = 0;
+        let models: ModelCatalogItemDto[] = [];
+        let total = 0;
 
-    if (isPriceSort) {
-      // Execute database-level price sorting
-      const priceSortResult = await this.queryWithPriceSorting(where, query, skip, limit);
-      models = priceSortResult.models;
-      total = priceSortResult.total;
-    } else {
-      // Standard Prisma query with index-accelerated sorting
-      const orderBy = this.buildStandardOrderBy(query.sort);
+        if (isPriceSort) {
+          const priceSortResult = await this.queryWithPriceSorting(where, query, skip, limit);
+          models = priceSortResult.models;
+          total = priceSortResult.total;
+        } else {
+          const orderBy = this.buildStandardOrderBy(query.sort);
 
-      const [records, count] = await Promise.all([
-        this.db.model.findMany({
-          where,
-          orderBy,
-          skip,
-          take: limit,
-          include: {
-            labs: {
+          const [records, count] = await Promise.all([
+            this.db.model.findMany({
+              where,
+              orderBy,
+              skip,
+              take: limit,
               include: {
-                aiLab: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                  },
-                },
-              },
-            },
-            endpoints: {
-              where: {
-                status: "ONLINE",
-              },
-              include: {
-                provider: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                  },
-                },
-                pricingRecords: {
-                  orderBy: { observedAt: "desc" },
-                  take: 1,
+                labs: {
                   include: {
-                    source: {
+                    aiLab: {
                       select: {
+                        id: true,
+                        name: true,
                         slug: true,
                       },
                     },
                   },
                 },
+                endpoints: {
+                  where: {
+                    status: "ONLINE",
+                  },
+                  include: {
+                    provider: {
+                      select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                      },
+                    },
+                    pricingRecords: {
+                      orderBy: { observedAt: "desc" },
+                      take: 1,
+                      include: {
+                        source: {
+                          select: {
+                            slug: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
               },
-            },
-          },
-        }),
-        this.db.model.count({ where }),
-      ]);
+            }),
+            this.db.model.count({ where }),
+          ]);
 
-      total = count;
-      models = records.map((record) => this.mapToCatalogItemDto(record));
-    }
+          total = count;
+          models = records.map((record) => this.mapToCatalogItemDto(record));
+        }
 
-    const totalPages = Math.ceil(total / limit) || 1;
-    const pagination: PaginationMeta = {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    };
+        const totalPages = Math.ceil(total / limit) || 1;
+        const pagination: PaginationMeta = {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        };
 
-    return {
-      models,
-      pagination,
-      appliedFilters: query,
-    };
+        return {
+          models,
+          pagination,
+          appliedFilters: query,
+        };
+      },
+      60
+    );
   }
 
-  // ==========================================
-  // QUERY BUILDER HELPERS
-  // ==========================================
-
+  /**
+   * Constructs the Prisma WHERE clause based on the provided catalog filters.
+   *
+   * Enforces that only active models are returned and applies case-insensitive matching
+   * for search terms, labs, and providers. Pricing filters are constrained to match
+   * within the same pricing record on an active online endpoint.
+   *
+   * @param query - Validated catalog query options.
+   * @returns Prisma model WHERE condition tree.
+   */
   private buildWhereClause(query: ModelsCatalogQuery): Prisma.ModelWhereInput {
     const andConditions: Prisma.ModelWhereInput[] = [
-      // Only include active models in public discovery
       { status: "ACTIVE" },
     ];
 
-    // Search query (case-insensitive across name, slug, family, description)
     if (query.q && query.q.length > 0) {
       andConditions.push({
         OR: [
@@ -150,7 +166,6 @@ export class ModelsQueryService implements IModelsQueryService {
       });
     }
 
-    // AI Lab filter (verified model-to-lab relation)
     if (query.lab && query.lab.length > 0) {
       andConditions.push({
         labs: {
@@ -163,7 +178,6 @@ export class ModelsQueryService implements IModelsQueryService {
       });
     }
 
-    // Provider filter (only through active online endpoints)
     if (query.provider && query.provider.length > 0) {
       andConditions.push({
         endpoints: {
@@ -177,7 +191,6 @@ export class ModelsQueryService implements IModelsQueryService {
       });
     }
 
-    // Modality filter (input or output)
     if (query.modality && query.modality.length > 0) {
       andConditions.push({
         OR: [
@@ -199,21 +212,18 @@ export class ModelsQueryService implements IModelsQueryService {
       });
     }
 
-    // Nullable reasoning classification
     if (query.reasoning !== undefined) {
       andConditions.push({
         isReasoning: query.reasoning,
       });
     }
 
-    // Nullable open-weight classification
     if (query.openWeights !== undefined) {
       andConditions.push({
         isOpenWeight: query.openWeights,
       });
     }
 
-    // Context window range
     if (query.minimumContext !== undefined || query.maximumContext !== undefined) {
       andConditions.push({
         contextWindow: {
@@ -224,7 +234,6 @@ export class ModelsQueryService implements IModelsQueryService {
       });
     }
 
-    // Pricing filters (must apply to the SAME pricing record of an eligible endpoint)
     const hasInputPriceFilter =
       query.minimumInputPrice !== undefined || query.maximumInputPrice !== undefined;
     const hasOutputPriceFilter =
@@ -274,6 +283,14 @@ export class ModelsQueryService implements IModelsQueryService {
     };
   }
 
+  /**
+   * Generates Prisma order-by clauses for standard indexed model attributes.
+   *
+   * All sorts maintain deterministic ordering by appending model ID as a secondary tie-breaker.
+   *
+   * @param sort - Requested sort order.
+   * @returns Array of Prisma order-by definitions.
+   */
   private buildStandardOrderBy(
     sort: ModelsCatalogQuery["sort"]
   ): Prisma.ModelOrderByWithRelationInput[] {
@@ -307,7 +324,18 @@ export class ModelsQueryService implements IModelsQueryService {
   }
 
   /**
-   * Handles price-based sorting by computing lowest price per model at database level
+   * Performs database retrieval and pagination sorted by lowest endpoint price.
+   *
+   * Because lowest pricing across multiple provider endpoints is dynamic and computed,
+   * this method fetches matching candidates with active endpoints, computes the minimum
+   * price per model using exact Decimal precision, sorts with nulls placed last,
+   * slices the current page IDs, and hydrates the full model records.
+   *
+   * @param where - Filter criteria for candidate models.
+   * @param query - Validated catalog query containing sort direction.
+   * @param skip - Pagination offset.
+   * @param limit - Page size.
+   * @returns Paginated list of catalog items and total match count.
    */
   private async queryWithPriceSorting(
     where: Prisma.ModelWhereInput,
@@ -315,13 +343,11 @@ export class ModelsQueryService implements IModelsQueryService {
     skip: number,
     limit: number
   ): Promise<{ models: ModelCatalogItemDto[]; total: number }> {
-    // 1. Get total matching count
     const total = await this.db.model.count({ where });
     if (total === 0) {
       return { models: [], total: 0 };
     }
 
-    // 2. Fetch all matching model IDs and their endpoints
     const matchingModels = await this.db.model.findMany({
       where,
       select: {
@@ -342,7 +368,6 @@ export class ModelsQueryService implements IModelsQueryService {
       },
     });
 
-    // 3. Compute sort keys using exact Decimal comparisons
     const isInput =
       query.sort === "input_price_asc" || query.sort === "input_price_desc";
     const isAsc =
@@ -369,11 +394,11 @@ export class ModelsQueryService implements IModelsQueryService {
       };
     });
 
-    // Sort with nulls last
+    // Sort with nulls last, breaking ties deterministically by ID
     scoredModels.sort((a, b) => {
       if (a.price === null && b.price === null) return a.id.localeCompare(b.id);
-      if (a.price === null) return 1; // nulls last
-      if (b.price === null) return -1; // nulls last
+      if (a.price === null) return 1;
+      if (b.price === null) return -1;
 
       if (a.price.equals(b.price)) {
         return a.id.localeCompare(b.id);
@@ -383,7 +408,6 @@ export class ModelsQueryService implements IModelsQueryService {
       return isAsc ? cmp : -cmp;
     });
 
-    // Slice for pagination
     const pageSlice = scoredModels.slice(skip, skip + limit);
     const pageIds = pageSlice.map((s) => s.id);
 
@@ -391,7 +415,6 @@ export class ModelsQueryService implements IModelsQueryService {
       return { models: [], total };
     }
 
-    // Fetch full model objects for the sliced page
     const fullRecords = await this.db.model.findMany({
       where: {
         id: { in: pageIds },
@@ -436,7 +459,7 @@ export class ModelsQueryService implements IModelsQueryService {
       },
     });
 
-    // Reorder records according to pageIds
+    // Maintain the scored sort order across hydrated records
     const recordMap = new Map(fullRecords.map((r) => [r.id, r]));
     const orderedRecords = pageIds
       .map((id) => recordMap.get(id))
@@ -447,7 +470,10 @@ export class ModelsQueryService implements IModelsQueryService {
   }
 
   /**
-   * Maps internal Prisma model and relational endpoints into public ModelCatalogItemDto
+   * Transforms an internal database model record into a public catalog item DTO.
+   *
+   * @param record - Database model entity with related labs and endpoint pricing records.
+   * @returns Public ModelCatalogItemDto representation.
    */
   private mapToCatalogItemDto(record: {
     id: string;
@@ -513,7 +539,13 @@ export class ModelsQueryService implements IModelsQueryService {
   }
 
   /**
-   * Aggregates provider-aware lowest pricing offers across eligible online endpoints
+   * Evaluates online endpoints to determine the lowest available input and output token pricing.
+   *
+   * Iterates through active endpoints, comparing pricing records with Decimal precision
+   * to identify the best offer for both input and output tokens per million.
+   *
+   * @param endpoints - List of online endpoints with latest observed pricing records.
+   * @returns Summary containing lowest input/output offers and total available provider count.
    */
   private calculatePricingSummary(
     endpoints: Array<{
@@ -547,7 +579,6 @@ export class ModelsQueryService implements IModelsQueryService {
 
       const sourceSlug = pr.source?.slug || "unknown";
 
-      // Input price evaluation
       if (pr.inputPricePerMillion !== null && pr.inputPricePerMillion !== undefined) {
         if (
           lowestInputDecimal === null ||
@@ -568,7 +599,6 @@ export class ModelsQueryService implements IModelsQueryService {
         }
       }
 
-      // Output price evaluation
       if (pr.outputPricePerMillion !== null && pr.outputPricePerMillion !== undefined) {
         if (
           lowestOutputDecimal === null ||
@@ -598,14 +628,21 @@ export class ModelsQueryService implements IModelsQueryService {
   }
 
   /**
-   * Delegate single model detail lookup to ModelDetailQueryService (Phase 4C)
+   * Retrieves canonical model details by slug.
+   *
+   * @param slug - Canonical model identifier.
+   * @returns Detailed model DTO or null if not found.
    */
   async getModelBySlug(slug: string): Promise<ModelDetailDto | null> {
     return modelDetailQueryService.getModelDetails(slug);
   }
 
   /**
-   * Delegate pricing history lookup to ModelDetailQueryService (Phase 4C)
+   * Retrieves historical pricing time series for a model across providers.
+   *
+   * @param slug - Canonical model identifier.
+   * @param query - Timeframe and granularity options.
+   * @returns Pricing history result or null if the model is not found.
    */
   async getModelPricingHistory(
     slug: string,

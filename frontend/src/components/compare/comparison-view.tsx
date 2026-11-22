@@ -14,11 +14,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ModelComparisonDto } from "@oneatlas/backend/shared";
 import { AlertCircle, RefreshCw, GitCompareArrows } from "lucide-react";
 
+/**
+ * Multi-model comparison workspace component.
+ *
+ * Coordinates side-by-side comparative analysis of 2 to 4 canonical AI models.
+ * Synchronizes selected model slugs with the `?models=slug1,slug2` URL query parameter,
+ * displaying synchronized specification tables, pricing differentials, and benchmark matrices.
+ */
 export function ComparisonView() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Parse initial model slugs from query parameter: ?models=slug1,slug2
   const initialModelsParam = searchParams.get("models");
   const initialSlugs = initialModelsParam
     ? initialModelsParam
@@ -32,7 +38,9 @@ export function ComparisonView() {
   const [isLoading, setIsLoading] = useState(initialSlugs.length >= 2);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync selected slugs to URL without full page reload
+  /**
+   * Synchronizes active comparison models to URL query parameters without full page reload.
+   */
   const updateUrl = useCallback(
     (slugs: string[]) => {
       const params = new URLSearchParams(window.location.search);
@@ -47,7 +55,6 @@ export function ComparisonView() {
     [router]
   );
 
-  // Fetch comparison data when selectedSlugs changes
   useEffect(() => {
     let ignore = false;
     const abortController = new AbortController();
@@ -160,7 +167,6 @@ export function ComparisonView() {
 
   return (
     <div className="space-y-8">
-      {/* SECTION 1: Model Selection Controller */}
       <ModelSelector
         selectedSlugs={selectedSlugs}
         onAddSlug={handleAddSlug}
@@ -169,7 +175,6 @@ export function ComparisonView() {
         onClearAll={handleClearAll}
       />
 
-      {/* SECTION 2: Empty State (when fewer than 2 models selected) */}
       {selectedSlugs.length < 2 && (
         <Card className="p-8 text-center space-y-4 bg-surface border-border">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-elevated text-accent">
@@ -186,7 +191,6 @@ export function ComparisonView() {
         </Card>
       )}
 
-      {/* SECTION 3: Error State */}
       {error && selectedSlugs.length >= 2 && (
         <Card className="p-6 bg-red-500/10 border-red-500/30 text-center space-y-3">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/20 text-red-400">
@@ -222,7 +226,6 @@ export function ComparisonView() {
         </Card>
       )}
 
-      {/* SECTION 4: Loading Skeleton */}
       {isLoading && selectedSlugs.length >= 2 && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -236,34 +239,28 @@ export function ComparisonView() {
         </div>
       )}
 
-      {/* SECTION 5: Active Comparison Matrix */}
       {!isLoading && !error && data && data.models.length >= 2 && (
         <div className="space-y-8 animate-in fade-in duration-200">
-          {/* Header Row */}
           <ComparisonHeader
             models={data.models}
             onRemoveModel={handleRemoveSlug}
           />
 
-          {/* Pricing Section */}
           <ComparisonPricing
             models={data.models}
             specsSummary={data.comparisonMatrix.specsSummary}
           />
 
-          {/* Specifications Table */}
           <ComparisonSpecificationTable
             models={data.models}
             specsSummary={data.comparisonMatrix.specsSummary}
           />
 
-          {/* Benchmarks Section */}
           <ComparisonBenchmarks
             models={data.models}
             benchmarks={data.comparisonMatrix.benchmarks}
           />
 
-          {/* Provider Endpoints Matrix */}
           <ComparisonProviderTable models={data.models} />
         </div>
       )}

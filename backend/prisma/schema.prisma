@@ -156,6 +156,9 @@ model Model {
   @@index([status])
   @@index([family])
   @@index([releaseDate(sort: Desc)])
+  @@index([status, releaseDate(sort: Desc)])
+  @@index([status, name])
+  @@index([status, contextWindow])
   @@index([isReasoning])
   @@index([isOpenWeight])
   @@map("models")
@@ -362,6 +365,8 @@ model ModelProviderEndpoint {
   @@index([modelId])
   @@index([providerId])
   @@index([status])
+  @@index([providerId, status, lastSeenAt(sort: Desc)])
+  @@index([modelId, status])
   @@map("model_provider_endpoints")
 }
 
@@ -439,6 +444,7 @@ model BenchmarkResult {
 
   @@index([benchmarkId, metricValue(sort: Desc)])
   @@index([modelId, benchmarkId])
+  @@index([benchmarkId, modelId])
   @@index([sourceId, evaluationDate(sort: Desc)])
   @@map("benchmark_results")
 }

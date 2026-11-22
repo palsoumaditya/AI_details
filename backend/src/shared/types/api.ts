@@ -325,6 +325,7 @@ export interface HealthCheckComponent {
   status: "up" | "down";
   latencyMs?: number;
   message?: string;
+  details?: Record<string, unknown>;
 }
 
 export interface HealthDto {
@@ -335,6 +336,7 @@ export interface HealthDto {
   checks: {
     database: HealthCheckComponent;
     api: HealthCheckComponent;
+    cache?: HealthCheckComponent;
   };
 }
 

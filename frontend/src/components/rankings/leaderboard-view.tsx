@@ -30,6 +30,12 @@ export interface LeaderboardViewProps {
   benchmarkSlug: string;
 }
 
+/**
+ * Benchmark leaderboard view displaying competitive model rankings.
+ *
+ * Implements Standard Competition Ranking ("1224" rank scheme) where tied models receive equal
+ * ranks and subsequent ranks skip. Supports URL-synchronized search, lab filtering, and pagination.
+ */
 export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -243,7 +249,6 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Back Link */}
       <div>
         <Link
           href="/rankings"
@@ -254,7 +259,6 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
         </Link>
       </div>
 
-      {/* Benchmark Header Banner */}
       {benchmark && (
         <div className="rounded-2xl border border-border bg-surface p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -283,7 +287,6 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
               </div>
             </div>
 
-            {/* Direction & Metric Badges */}
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="text-xs gap-1.5 py-1 px-2.5">
                 <span>{benchmark.metricName}</span>
@@ -312,14 +315,12 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
             </div>
           </div>
 
-          {/* Benchmark Description */}
           {benchmark.description && (
             <p className="text-sm text-text-secondary leading-relaxed pt-1">
               {benchmark.description}
             </p>
           )}
 
-          {/* Benchmark Meta Stats */}
           <div className="flex items-center gap-4 flex-wrap pt-3 border-t border-border/60 text-xs text-text-tertiary">
             <div className="flex items-center gap-1.5">
               <Layers className="h-3.5 w-3.5" />
@@ -347,7 +348,6 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
         </div>
       )}
 
-      {/* Leaderboard Filters */}
       <LeaderboardFilters
         searchQuery={localSearch}
         onSearchChange={setLocalSearch}
@@ -359,7 +359,6 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
         hasActiveFilters={hasActiveFilters}
       />
 
-      {/* Updating indicator */}
       {isUpdating && (
         <div className="flex items-center gap-1.5 text-xs text-text-tertiary animate-pulse">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
@@ -367,7 +366,6 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
         </div>
       )}
 
-      {/* Ranked Table */}
       {benchmark && (
         <LeaderboardTable
           rankings={rankings}
@@ -378,7 +376,6 @@ export function LeaderboardView({ benchmarkSlug }: LeaderboardViewProps) {
         />
       )}
 
-      {/* Pagination */}
       {pagination && (
         <LeaderboardPagination
           pagination={pagination}

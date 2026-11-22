@@ -15,6 +15,12 @@ export interface GlobalSearchProps {
   className?: string;
 }
 
+/**
+ * Global search input with real-time autocompletion and keyboard navigation.
+ *
+ * Supports global shortcut capture (Cmd+K / Ctrl+K or /), 300ms input debouncing with request
+ * cancellation via AbortController, and arrow-key dropdown navigation.
+ */
 export function GlobalSearch({
   placeholder = "Search models, providers, labs...",
   shortcutHint = "⌘K",
@@ -196,7 +202,6 @@ export function GlobalSearch({
 
   return (
     <div ref={containerRef} className={cn("relative w-full", className)}>
-      {/* Search Input Box */}
       <div className="relative">
         <Search
           className={cn(
@@ -228,7 +233,6 @@ export function GlobalSearch({
           )}
         />
 
-        {/* Right action icons (Loading indicator, Clear button, Keyboard shortcut hint) */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
           {isLoading && (
             <Loader2 className="h-4 w-4 text-accent animate-spin" aria-label="Searching..." />
@@ -253,7 +257,6 @@ export function GlobalSearch({
         </div>
       </div>
 
-      {/* Suggestions Dropdown Popup */}
       {isOpen && query.trim().length > 0 && (
         <div
           id="global-search-listbox"
@@ -261,14 +264,12 @@ export function GlobalSearch({
           className="absolute left-0 right-0 top-full mt-2 z-50 rounded-xl border border-border bg-surface-elevated/95 backdrop-blur-md shadow-2xl overflow-hidden p-1.5 animate-in fade-in-50 zoom-in-95 duration-100"
         >
           {isLoading && suggestions.length === 0 ? (
-            /* Loading State */
             <div className="p-4 space-y-2.5">
               <div className="h-4 w-28 bg-surface rounded animate-pulse" />
               <div className="h-10 w-full bg-surface rounded animate-pulse" />
               <div className="h-10 w-full bg-surface rounded animate-pulse" />
             </div>
           ) : suggestions.length > 0 ? (
-            /* Matching Model Results */
             <div>
               <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary flex items-center justify-between">
                 <span>Matching AI Models</span>
@@ -321,7 +322,6 @@ export function GlobalSearch({
                         </div>
                       </div>
 
-                      {/* Right Specs Preview */}
                       <div className="hidden sm:flex items-center gap-3 shrink-0 text-xs text-text-tertiary">
                         {model.contextWindow && (
                           <span className="flex items-center gap-1">
@@ -340,7 +340,6 @@ export function GlobalSearch({
                 })}
               </div>
 
-              {/* View All Results Action */}
               <div
                 role="option"
                 aria-selected={selectedIndex === suggestions.length}
@@ -363,7 +362,6 @@ export function GlobalSearch({
               </div>
             </div>
           ) : (
-            /* Empty Search Results */
             <div className="p-6 text-center space-y-2">
               <p className="text-sm text-text-primary font-medium">
                 No models found matching &ldquo;{query}&rdquo;

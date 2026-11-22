@@ -5,8 +5,15 @@
  */
 
 // Client utilities
-export { createPrismaClient, getPrismaClient, prisma } from "./client";
-export type { PrismaClientOptions } from "./client";
+export {
+  createPrismaClient,
+  getPrismaClient,
+  prisma,
+  getDatabasePoolMetrics,
+  disconnectDatabase,
+  resolveConnectionUrl,
+} from "./client";
+export type { PrismaClientOptions, DatabasePoolMetrics } from "./client";
 
 // Re-export generated Prisma Client and namespace
 export { PrismaClient, Prisma } from "../generated/prisma/client";
