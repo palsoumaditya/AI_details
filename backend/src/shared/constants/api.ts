@@ -1,5 +1,5 @@
 /**
- * Standard API Constants, Error Codes, and Allowlists for OneAtlas.dev (Phase 4A & 4B)
+ * Standard API Constants, Error Codes, and Allowlists.
  */
 
 export const API_VERSION = "v1" as const;
@@ -41,7 +41,7 @@ export const PAGINATION_CONSTRAINTS = {
   MAX_LIMIT: 100,
 } as const;
 
-/** Model Catalog Sort Options (Phase 4B) */
+/** Model Catalog Sort Options */
 export const MODEL_CATALOG_SORTS = [
   "newest",
   "oldest",

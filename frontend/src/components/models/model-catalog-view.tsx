@@ -26,20 +26,25 @@ import {
   Sparkles,
 } from "lucide-react";
 
+/**
+ * Interactive model catalog view with URL-synchronized filtering, sorting, and pagination.
+ *
+ * Maintains filter and pagination state directly in search params for shareable and back-button
+ * compliant discovery. Fetches catalog pages with abortable requests.
+ */
 export function ModelCatalogView() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
 
-  // Network State
   const [models, setModels] = useState<ModelCatalogItemDto[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Read current parameters directly from URL as single source of truth
+  // Synchronize state with URL search parameters as the single source of truth
   const query = searchParams.get("q") || "";
   const sort = (searchParams.get("sort") as ModelCatalogSort) || "newest";
   const lab = searchParams.get("lab") || undefined;
@@ -70,7 +75,6 @@ export function ModelCatalogView() {
     ? parseFloat(searchParams.get("maximumOutputPrice")!)
     : undefined;
 
-  // Active filters count (excluding sort and page)
   const activeFiltersCount = [
     query,
     lab,
@@ -96,7 +100,9 @@ export function ModelCatalogView() {
     maximumOutputPrice,
   };
 
-  // Centralized URL synchronizer
+  /**
+   * Updates URL search parameters, preserving unmodified parameters and initiating transitions.
+   */
   const updateUrlParams = useCallback(
     (updates: Record<string, string | null | undefined>, replace = true) => {
       const current = new URLSearchParams(searchParams.toString());
@@ -126,7 +132,6 @@ export function ModelCatalogView() {
     [searchParams, pathname, router]
   );
 
-  // Primary Fetch Effect responding to URL changes
   useEffect(() => {
     let ignore = false;
     const abortController = new AbortController();
@@ -185,11 +190,10 @@ export function ModelCatalogView() {
     };
   }, [searchParams]);
 
-  // Handlers
   const handleSearchChange = (newQuery: string) => {
     updateUrlParams({
       q: newQuery.trim() || null,
-      page: "1", // reset page on search
+      page: "1",
     });
   };
 
@@ -279,7 +283,6 @@ export function ModelCatalogView() {
 
   return (
     <div className="max-w-7xl mx-auto pb-16">
-      {/* Page Header */}
       <PageHeader
         title="Explore AI Models"
         description="Unified developer intelligence catalog for frontier and open-weight models across major AI research labs and inference providers."
@@ -299,7 +302,6 @@ export function ModelCatalogView() {
         )}
       </PageHeader>
 
-      {/* Main Search and Sort Toolbar */}
       <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <ModelSearch
           value={query}
@@ -312,7 +314,6 @@ export function ModelCatalogView() {
         </div>
       </div>
 
-      {/* Active Filter Chips Bar */}
       {activeFiltersCount > 0 && (
         <div className="mb-6 flex items-center gap-2 flex-wrap text-xs">
           <span className="text-text-tertiary">Active filters:</span>
@@ -448,9 +449,7 @@ export function ModelCatalogView() {
         </div>
       )}
 
-      {/* Main Two-Column Layout (Sidebar Filters + Models Grid) */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Filters Sidebar */}
         <ModelFilters
           filters={filtersState}
           onChange={handleFiltersChange}
@@ -458,10 +457,8 @@ export function ModelCatalogView() {
           activeCount={activeFiltersCount}
         />
 
-        {/* Content Section: Loading, Error, Empty, or Model Grid */}
         <div className="flex-1 w-full min-w-0">
           {error ? (
-            /* Error State */
             <div className="rounded-xl border border-border bg-surface p-8 text-center space-y-4">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-surface-elevated text-accent">
                 <AlertTriangle className="h-6 w-6" />
@@ -485,14 +482,12 @@ export function ModelCatalogView() {
               </Button>
             </div>
           ) : isLoading ? (
-            /* Loading Skeleton Grid */
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <ModelCardSkeleton key={i} />
               ))}
             </div>
           ) : models.length === 0 ? (
-            /* Empty State */
             <EmptyState
               icon={<Compass className="h-7 w-7" />}
               title="No models found"
@@ -505,7 +500,6 @@ export function ModelCatalogView() {
               actionHref={activeFiltersCount > 0 ? "/models" : undefined}
             />
           ) : (
-            /* Functional Model Card Grid */
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {models.map((model) => (
@@ -513,7 +507,6 @@ export function ModelCatalogView() {
                 ))}
               </div>
 
-              {/* Pagination Controls */}
               {pagination && (
                 <ModelPagination
                   pagination={pagination}

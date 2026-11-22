@@ -5,16 +5,22 @@ import {
 } from "@oneatlas/database";
 import type { EndpointResolutionInput, EndpointResolutionResult } from "./types";
 
+/**
+ * Resolves inference endpoint identifiers and links model provider endpoint relationships.
+ *
+ * Ensures strict integrity: an endpoint is never created or updated unless both the canonical
+ * model and canonical provider have been authoritatively resolved.
+ */
 export class EndpointResolver {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
-   * Resolves canonical Provider and canonical Model, then creates or updates ModelProviderEndpoint
-   * and links it via EndpointSourceMapping.
+   * Resolves canonical model and provider references, then creates or updates the ModelProviderEndpoint.
    *
-   * STRICT SAFETY:
-   * If either canonical Model or canonical Provider cannot be authoritatively resolved,
-   * the endpoint remains unresolved. It is NEVER attached to a guessed or random model.
+   * @param input - Endpoint details including endpoint key, model external ID, and provider ID.
+   * @param canonicalModelId - Verified canonical model ID (null if unresolved).
+   * @param tx - Optional transaction client.
+   * @returns EndpointResolutionResult indicating resolution status ('RESOLVED' or 'UNRESOLVED').
    */
   async resolveEndpoint(
     input: EndpointResolutionInput,
@@ -23,7 +29,6 @@ export class EndpointResolver {
   ): Promise<EndpointResolutionResult> {
     const db = tx || this.prisma;
 
-    // 1. Model resolution check
     if (!canonicalModelId) {
       return {
         status: "UNRESOLVED",
@@ -31,7 +36,6 @@ export class EndpointResolver {
       };
     }
 
-    // 2. Resolve canonical Provider
     let providerId: string | null = null;
     const providerMapping = await db.providerSourceMapping.findUnique({
       where: {
@@ -60,7 +64,7 @@ export class EndpointResolver {
       };
     }
 
-    // 3. Resolve or create ModelProviderEndpoint (modelId + providerId + endpointKey)
+    // Lookup existing endpoint record by model, provider, and unique endpoint key
     const existingEndpoint = await db.modelProviderEndpoint.findUnique({
       where: {
         modelId_providerId_endpointKey: {
@@ -82,7 +86,6 @@ export class EndpointResolver {
     if (existingEndpoint) {
       endpointId = existingEndpoint.id;
 
-      // Check change detection
       const existingMapping = existingEndpoint.sourceMappings[0];
       const isHashUnchanged =
         input.payloadHash && existingMapping && existingMapping.payloadHash === input.payloadHash;
@@ -113,7 +116,6 @@ export class EndpointResolver {
         endpointSyncStatus = "updated";
       }
 
-      // Upsert EndpointSourceMapping
       const externalEndpointId = `${input.providerExternalId}/${input.modelExternalId}`;
       await db.endpointSourceMapping.upsert({
         where: {
@@ -135,7 +137,6 @@ export class EndpointResolver {
         },
       });
     } else {
-      // Create new ModelProviderEndpoint
       const newEndpoint = await db.modelProviderEndpoint.create({
         data: {
           modelId: canonicalModelId,
@@ -154,7 +155,6 @@ export class EndpointResolver {
       endpointId = newEndpoint.id;
       endpointSyncStatus = "inserted";
 
-      // Create EndpointSourceMapping
       const externalEndpointId = `${input.providerExternalId}/${input.modelExternalId}`;
       await db.endpointSourceMapping.create({
         data: {

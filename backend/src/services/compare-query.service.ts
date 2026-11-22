@@ -9,14 +9,13 @@ import type {
 } from "../shared/types/api";
 
 /**
- * Model Comparison Query Service (Phase 4E / Task 5)
+ * Service for multi-model comparative analysis.
  *
  * Compares 2 to 4 canonical AI models side-by-side:
- * - Validates model slug constraints and uniqueness
- * - Aggregates specs, providers, pricing offers, and benchmark matrices
- * - Avoids N+1 queries by executing indexed multi-model queries concurrently
- * - Aligns benchmark evaluations with direction-aware leader computation
- * - Computes pricing advantages and context window leadership
+ * - Validates model slug constraints and uniqueness.
+ * - Concurrently aggregates specifications, provider endpoints, and benchmark evaluations.
+ * - Aligns benchmark evaluations with direction-aware (`higherIsBetter`) leader computation.
+ * - Computes pricing advantages and context window leadership across the compared cohort.
  */
 export class CompareQueryService implements ICompareQueryService {
   constructor(
@@ -24,21 +23,24 @@ export class CompareQueryService implements ICompareQueryService {
   ) {}
 
   /**
-   * Compare 2 to 4 models by their canonical slugs
+   * Compares 2 to 4 models side-by-side by their canonical slugs.
    *
-   * @param request - Validated or unvalidated comparison request containing 2-4 unique slugs
-   * @returns ModelComparisonDto containing detailed models, aligned benchmarks, and specs summary
+   * Fetches full model profiles in parallel, aligns benchmark scores across all models,
+   * calculates leaders per benchmark metric, and determines specification leaders.
+   *
+   * @param request - Validated comparison request containing 2-4 unique model slugs.
+   * @returns Comprehensive comparison matrix including aligned models, benchmarks, and specs.
+   * @throws Error if any requested model slug is not found.
    */
   async compareModels(request: CompareRequest): Promise<ModelComparisonDto> {
-    // 1. Enforce strict validation
     const { modelSlugs } = CompareRequestSchema.parse(request);
 
-    // 2. Fetch canonical details concurrently (parallel indexed queries)
+    // Fetch details for all requested models concurrently
     const modelsOrNull = await Promise.all(
       modelSlugs.map((slug) => this.modelDetailService.getModelDetails(slug))
     );
 
-    // 3. Detect any missing models while preserving order
+    // Ensure all requested models exist, maintaining user request ordering
     const missingSlugs: string[] = [];
     modelSlugs.forEach((slug, idx) => {
       if (!modelsOrNull[idx]) {
@@ -52,7 +54,7 @@ export class CompareQueryService implements ICompareQueryService {
 
     const models = modelsOrNull as ModelDetailDto[];
 
-    // 4. Align benchmarks across all requested models
+    // Index and align benchmark results across all models in the comparison cohort
     const benchmarkMap = new Map<
       string,
       {
@@ -93,7 +95,7 @@ export class CompareQueryService implements ICompareQueryService {
       }
     }
 
-    // Build benchmark rows with leader highlighting
+    // Build benchmark rows and determine the leader based on metric directionality
     const benchmarkRows: ComparisonBenchmarkRowDto[] = [];
     for (const entry of benchmarkMap.values()) {
       let bestSlug: string | null = null;
@@ -121,7 +123,6 @@ export class CompareQueryService implements ICompareQueryService {
         }
       }
 
-      // Mark leader score
       if (bestSlug) {
         for (const model of models) {
           const score = entry.scores[model.slug];
@@ -138,14 +139,14 @@ export class CompareQueryService implements ICompareQueryService {
       });
     }
 
-    // Order benchmark rows: Category ascending, Benchmark name ascending
+    // Sort benchmark rows alphabetically by category, then by benchmark name
     benchmarkRows.sort((a, b) => {
       const catComp = a.benchmark.category.localeCompare(b.benchmark.category);
       if (catComp !== 0) return catComp;
       return a.benchmark.name.localeCompare(b.benchmark.name);
     });
 
-    // 5. Compute summary specs and pricing advantages
+    // Calculate leadership across hardware specs and lowest available pricing
     let cheapestInputSlug: string | null = null;
     let lowestInputPrice: number | null = null;
     let cheapestOutputSlug: string | null = null;

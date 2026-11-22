@@ -39,9 +39,16 @@
     "audit:provenance": "npm run audit:provenance -w @oneatlas/backend",
     "audit:conflicts": "npm run audit:conflicts -w @oneatlas/backend",
     "audit:endpoints": "npm run audit:endpoints -w @oneatlas/backend",
+    "test:load": "k6 run tests/k6/load-test.js",
+    "bench:load": "tsx tests/k6/bench-harness.ts",
     "postinstall": "npm run db:generate -w @oneatlas/backend"
   },
   "devDependencies": {
+    "@types/ioredis": "^4.28.10",
+    "autocannon": "^9.0.0",
     "typescript": "^5"
+  },
+  "dependencies": {
+    "ioredis": "^6.0.0"
   }
 }

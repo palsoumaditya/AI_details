@@ -6,6 +6,8 @@ import {
   successResponse,
   validateQueryParams,
   logApiRequest,
+  generateETag,
+  handleETagCheck,
 } from "@/lib/api";
 import { RankingsDirectoryQuerySchema } from "@oneatlas/backend/shared";
 
@@ -32,6 +34,16 @@ export async function GET(request: NextRequest) {
     // 2. Delegate to Backend Application Service
     const result = await rankingsQueryService.getBenchmarkDirectory(validatedQuery);
 
+    const etag = generateETag(result);
+    const notModified = handleETagCheck(
+      request.headers.get("if-none-match"),
+      etag,
+      "public, s-maxage=60, stale-while-revalidate=300"
+    );
+    if (notModified) {
+      return notModified;
+    }
+
     // 3. Structured observability logging
     logApiRequest({
       requestId: ctx.requestId,
@@ -43,6 +55,7 @@ export async function GET(request: NextRequest) {
 
     // 4. Return standard response envelope with caching
     return successResponse(result, ctx.requestId, 200, {
+      ETag: etag,
       "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
     });
   } catch (err: unknown) {
