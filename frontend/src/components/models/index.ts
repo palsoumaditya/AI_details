@@ -4,3 +4,7 @@ export * from "./model-pagination";
 export * from "./model-search";
 export * from "./model-sort-select";
 export * from "./model-catalog-view";
+export * from "./model-provider-table";
+export * from "./model-benchmarks";
+export * from "./model-pricing-history-table";
+export * from "./model-provenance-card";

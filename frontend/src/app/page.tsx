@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SearchField } from "@/components/ui/search-field";
+import { GlobalSearch } from "@/components/search/global-search";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -71,16 +71,14 @@ export default function HomePage() {
 
         {/* Hero search */}
         <div className="mt-8 max-w-xl">
-          <SearchField
+          <GlobalSearch
             placeholder="Search models, providers, or labs..."
             shortcutHint="⌘K"
-            disabled
-            aria-label="Search the catalog (coming soon)"
-            title="Catalog search will be available after the backend API phase"
+            variant="hero"
             className="w-full"
           />
           <p className="mt-2 text-xs text-text-tertiary">
-            Full catalog search is coming in the next phase. Browse sections below to explore.
+            Search models across OpenAI, Anthropic, Google DeepMind, Meta, Mistral, and more.
           </p>
         </div>
       </section>

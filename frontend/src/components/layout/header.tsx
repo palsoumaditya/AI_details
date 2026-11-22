@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchField } from "@/components/ui/search-field";
+import { GlobalSearch } from "@/components/search/global-search";
 import { Menu } from "lucide-react";
 
 export interface HeaderProps {
@@ -19,14 +19,12 @@ export function Header({ onMenuClick }: HeaderProps) {
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Search */}
+      {/* Activated Global Search */}
       <div className="flex-1 max-w-lg">
-        <SearchField
+        <GlobalSearch
           placeholder="Search models, providers, labs..."
           shortcutHint="⌘K"
-          disabled
-          aria-label="Search the catalog (coming soon)"
-          title="Catalog search will be available after the backend API phase"
+          variant="header"
         />
       </div>
 
