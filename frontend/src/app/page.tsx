@@ -41,7 +41,7 @@ const PLATFORM_SECTIONS = [
       "Compare pricing, latency, and availability across inference providers like OpenAI, Together AI, and Groq.",
     href: "/providers",
     icon: <Server className="h-5 w-5" />,
-    badge: "Coming Soon",
+    badge: "Live",
   },
   {
     title: "AI Labs & Research",
@@ -49,7 +49,7 @@ const PLATFORM_SECTIONS = [
       "Track AI research organizations, their model families, and contributions to the ecosystem.",
     href: "/labs",
     icon: <FlaskConical className="h-5 w-5" />,
-    badge: "Coming Soon",
+    badge: "Live",
   },
 ];
 
