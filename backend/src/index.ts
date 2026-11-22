@@ -5,6 +5,10 @@
  * database client, and shared contracts.
  */
 
+// Services & query contracts
+export * as services from "./services/index";
+export { HealthService, healthService } from "./services/index";
+
 // Database client & models
 export * as database from "./database/index";
 export { createPrismaClient, getPrismaClient, prisma } from "./database/index";

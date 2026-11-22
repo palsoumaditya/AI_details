@@ -3,6 +3,8 @@
  * These types are safe for use in both frontend and backend.
  */
 
+export * from "./api";
+
 /** Minimal model summary safe for frontend display */
 export interface ModelSummary {
   id: string;
@@ -47,19 +49,5 @@ export interface PaginatedResponse<T> {
     pageSize: number;
     total: number;
     totalPages: number;
-  };
-}
-
-/** Standard API response envelope */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-  meta?: {
-    timestamp: string;
-    requestId?: string;
   };
 }

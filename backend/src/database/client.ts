@@ -1,5 +1,12 @@
+import path from "node:path";
+import dotenv from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
+
+// Ensure environment variables are loaded across standalone runners & Next.js
+dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
 
 /**
  * OneAtlas Prisma Client Singleton

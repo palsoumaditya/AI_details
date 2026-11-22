@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-/**
- * Frontend-safe Zod schemas for validation.
- * Do not include server-only schemas or raw provider payloads here.
- */
+export * from "./api";
 
 /** Pagination query parameters */
 export const PaginationSchema = z.object({
