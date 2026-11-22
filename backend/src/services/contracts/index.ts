@@ -12,6 +12,7 @@ import type {
   ProviderDetailResult,
   AiLabDirectoryResult,
   AiLabDetailResult,
+  ModelComparisonDto,
 } from "../../shared/types/api";
 import type {
   ModelsCatalogQuery,
@@ -71,10 +72,7 @@ export interface ILabsQueryService {
 }
 
 export interface ICompareQueryService {
-  compareModels(request: CompareRequest): Promise<{
-    models: ModelDetailDto[];
-    comparisonMatrix: Record<string, unknown>;
-  }>;
+  compareModels(request: CompareRequest): Promise<ModelComparisonDto>;
 }
 
 export interface IRankingsQueryService {

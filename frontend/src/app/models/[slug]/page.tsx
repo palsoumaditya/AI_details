@@ -24,6 +24,7 @@ import {
   Clock,
   BookOpen,
   Cpu,
+  GitCompareArrows,
 } from "lucide-react";
 
 interface ModelDetailPageProps {
@@ -131,12 +132,20 @@ export default async function ModelDetailPage({ params }: ModelDetailPageProps) 
           <span className="text-text-primary font-medium">{model.name}</span>
         </div>
 
-        <Link href="/models">
-          <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-8">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>All Models</span>
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/compare?models=${model.slug}`}>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8">
+              <GitCompareArrows className="h-3.5 w-3.5 text-accent" />
+              <span>Compare Model</span>
+            </Button>
+          </Link>
+          <Link href="/models">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-8">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>All Models</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* SECTION A: Model Header Profile */}

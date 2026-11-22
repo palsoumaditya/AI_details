@@ -489,3 +489,50 @@ export interface AiLabDetailResult {
     limit: number;
   };
 }
+
+// ==========================================
+// MODEL COMPARISON DTOs (Phase 4E / Task 5)
+// ==========================================
+
+export interface ComparisonBenchmarkScoreDto {
+  value: string;
+  numValue: number;
+  evaluationDate?: string | null;
+  modelVersion?: string | null;
+  sourceUrl?: string | null;
+  notes?: string | null;
+  sourceName?: string;
+  isLeader?: boolean;
+}
+
+export interface ComparisonBenchmarkRowDto {
+  benchmark: {
+    slug: string;
+    name: string;
+    version: string;
+    category: string;
+    metricName: string;
+    metricUnit: string;
+    higherIsBetter: boolean;
+  };
+  scores: Record<string, ComparisonBenchmarkScoreDto | null>;
+  bestModelSlug: string | null;
+}
+
+export interface ModelComparisonSpecsSummaryDto {
+  cheapestInputSlug: string | null;
+  cheapestOutputSlug: string | null;
+  largestContextSlug: string | null;
+  maxOutputTokensLeaderSlug: string | null;
+}
+
+export interface ModelComparisonMatrixDto {
+  benchmarks: ComparisonBenchmarkRowDto[];
+  specsSummary?: ModelComparisonSpecsSummaryDto;
+}
+
+export interface ModelComparisonDto {
+  models: ModelDetailDto[];
+  comparisonMatrix: ModelComparisonMatrixDto;
+}
+
