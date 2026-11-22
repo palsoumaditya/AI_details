@@ -9,4 +9,5 @@ export { ModelDetailQueryService, modelDetailQueryService } from "./model-detail
 export { ProviderDirectoryQueryService, providerDirectoryQueryService } from "./provider-directory-query.service";
 export { LabDirectoryQueryService, labDirectoryQueryService } from "./lab-directory-query.service";
 export { CompareQueryService, compareQueryService } from "./compare-query.service";
+export { RankingsQueryService, rankingsQueryService } from "./rankings-query.service";
 
