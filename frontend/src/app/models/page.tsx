@@ -5,7 +5,7 @@ import { ModelCardSkeleton } from "@/components/models/model-card";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = {
-  title: "Explore AI Models | OneAtlas.dev",
+  title: "Explore AI Models | AI Details",
   description:
     "Unified intelligence catalog of frontier and open-weight AI models across OpenAI, Anthropic, Google DeepMind, Meta, Mistral, DeepSeek, and leading inference providers.",
 };

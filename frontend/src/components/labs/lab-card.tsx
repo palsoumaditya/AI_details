@@ -25,7 +25,7 @@ export function LabCard({ lab }: LabCardProps) {
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-elevated text-accent group-hover:bg-accent-muted transition-colors">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-800 border border-slate-200 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all duration-200 shadow-2xs">
                 <FlaskConical className="h-4 w-4" />
               </div>
               <div>
@@ -65,13 +65,13 @@ export function LabCard({ lab }: LabCardProps) {
             </Badge>
 
             {lab.creatorModelCount > 0 && (
-              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-text-tertiary">
+              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/60">
                 {lab.creatorModelCount} Created
               </span>
             )}
 
             {lab.publisherModelCount > 0 && (
-              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-text-tertiary">
+              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/60">
                 {lab.publisherModelCount} Published
               </span>
             )}

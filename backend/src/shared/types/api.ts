@@ -536,3 +536,73 @@ export interface ModelComparisonDto {
   comparisonMatrix: ModelComparisonMatrixDto;
 }
 
+// ==========================================
+// RANKINGS & BENCHMARK LEADERBOARD DTOs (Phase 4F / Task 6)
+// ==========================================
+
+export interface BenchmarkDirectoryItemDto {
+  id: string;
+  slug: string;
+  name: string;
+  version: string;
+  category: string;
+  metricName: string;
+  metricUnit: string;
+  higherIsBetter: boolean;
+  description: string | null;
+  evaluatedModelCount: number;
+  latestEvaluationDate: string | null;
+}
+
+export interface RankedModelItemDto {
+  rank: number;
+  model: {
+    id: string;
+    slug: string;
+    name: string;
+    family: string | null;
+    isReasoning?: boolean | null;
+    isOpenWeight?: boolean | null;
+  };
+  lab: {
+    id: string;
+    slug: string;
+    name: string;
+  } | null;
+  score: string;
+  numScore: number;
+  metricUnit: string;
+  evaluationDate: string | null;
+  modelVersion: string | null;
+  sampleSize: number | null;
+  source: {
+    slug: string;
+    name: string;
+  } | null;
+}
+
+export interface RankingsDirectoryResult {
+  benchmarks: BenchmarkDirectoryItemDto[];
+  categories: { category: string; count: number }[];
+  totalBenchmarks: number;
+  totalEvaluatedModels: number;
+  appliedFilters: {
+    category?: string;
+    q?: string;
+  };
+}
+
+export interface BenchmarkLeaderboardResult {
+  benchmark: BenchmarkDirectoryItemDto;
+  rankings: RankedModelItemDto[];
+  pagination: PaginationMeta;
+  appliedFilters: {
+    benchmarkSlug: string;
+    q?: string;
+    lab?: string;
+    page: number;
+    limit: number;
+    sort?: string;
+  };
+}
+

@@ -390,3 +390,51 @@ export type ProviderSlugParam = SlugParam;
 
 export const LabSlugParamSchema = SlugParamSchema;
 export type LabSlugParam = SlugParam;
+
+/**
+ * Rankings & Benchmarks Query Schemas (Phase 4F / Task 6)
+ */
+
+export const RankingsDirectoryQuerySchema = z.object({
+  category: z
+    .enum([
+      "ALL",
+      "REASONING",
+      "CODING",
+      "MATH",
+      "KNOWLEDGE",
+      "MULTIMODAL",
+      "SPEED",
+      "COMPOSITE",
+    ])
+    .optional(),
+  q: z.string().trim().max(100, "Search query cannot exceed 100 characters").optional(),
+});
+
+export type RankingsDirectoryQuery = z.infer<typeof RankingsDirectoryQuerySchema>;
+export type RankingsDirectoryInputQuery = z.input<typeof RankingsDirectoryQuerySchema>;
+
+export const RankingsLeaderboardQuerySchema = z.object({
+  page: z.coerce
+    .number()
+    .int("Page must be an integer")
+    .min(1, "Page must be greater than or equal to 1")
+    .default(PAGINATION_CONSTRAINTS.DEFAULT_PAGE),
+  limit: z.coerce
+    .number()
+    .int("Limit must be an integer")
+    .min(PAGINATION_CONSTRAINTS.MIN_LIMIT, "Limit must be at least 1")
+    .max(PAGINATION_CONSTRAINTS.MAX_LIMIT, `Limit cannot exceed ${PAGINATION_CONSTRAINTS.MAX_LIMIT}`)
+    .default(PAGINATION_CONSTRAINTS.DEFAULT_LIMIT),
+  lab: z.string().trim().max(100, "Lab slug cannot exceed 100 characters").optional(),
+  q: z.string().trim().max(100, "Search query cannot exceed 100 characters").optional(),
+  sort: z
+    .enum(["rank_asc", "rank_desc", "score_desc", "score_asc", "name_asc", "name_desc"])
+    .default("rank_asc"),
+});
+
+export type RankingsLeaderboardQuery = z.infer<typeof RankingsLeaderboardQuerySchema>;
+export type RankingsLeaderboardInputQuery = z.input<typeof RankingsLeaderboardQuerySchema>;
+
+export const BenchmarkSlugParamSchema = SlugParamSchema;
+export type BenchmarkSlugParam = SlugParam;

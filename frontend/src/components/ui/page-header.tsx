@@ -5,6 +5,7 @@ export interface PageHeaderProps {
   title: string;
   description?: string;
   badge?: string;
+  annotation?: string;
   children?: React.ReactNode;
   className?: string;
 }
@@ -13,6 +14,7 @@ export function PageHeader({
   title,
   description,
   badge,
+  annotation,
   children,
   className,
 }: PageHeaderProps) {
@@ -25,9 +27,16 @@ export function PageHeader({
               {badge}
             </Badge>
           )}
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-            {title}
-          </h1>
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-text-primary tracking-tight">
+              {title}
+            </h1>
+            {annotation && (
+              <span className="homemade-apple-regular text-sm text-slate-500/90 select-none">
+                ~ {annotation}
+              </span>
+            )}
+          </div>
           {description && (
             <p className="text-sm text-text-secondary mt-2 max-w-2xl leading-relaxed">
               {description}

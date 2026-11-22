@@ -13,6 +13,8 @@ import type {
   AiLabDirectoryResult,
   AiLabDetailResult,
   ModelComparisonDto,
+  RankingsDirectoryResult,
+  BenchmarkLeaderboardResult,
 } from "../../shared/types/api";
 import type {
   ModelsCatalogQuery,
@@ -24,6 +26,8 @@ import type {
   LabsInputQuery,
   LabModelsInputQuery,
   CompareRequest,
+  RankingsDirectoryInputQuery,
+  RankingsLeaderboardInputQuery,
 } from "../../shared/schemas/api";
 
 /**
@@ -76,8 +80,6 @@ export interface ICompareQueryService {
 }
 
 export interface IRankingsQueryService {
-  getRankings(params: {
-    benchmarkSlug: string;
-    category?: string;
-  }): Promise<{ benchmark: BenchmarkDto; results: BenchmarkResultDto[] }>;
+  getBenchmarkDirectory(query?: RankingsDirectoryInputQuery): Promise<RankingsDirectoryResult>;
+  getLeaderboard(benchmarkSlug: string, query?: RankingsLeaderboardInputQuery): Promise<BenchmarkLeaderboardResult | null>;
 }

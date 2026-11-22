@@ -107,7 +107,7 @@ export function ComparisonBenchmarks({ models, benchmarks }: ComparisonBenchmark
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span
                                   className={`font-mono text-sm font-bold ${
-                                    isLeader ? "text-emerald-400" : "text-text-primary"
+                                    isLeader ? "text-slate-900 font-extrabold" : "text-text-primary"
                                   }`}
                                 >
                                   {score.value}

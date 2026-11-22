@@ -51,8 +51,8 @@ export function ComparisonPricing({ models, specsSummary }: ComparisonPricingPro
               key={model.slug}
               className={`p-4 rounded-xl border flex flex-col justify-between space-y-4 transition-all ${
                 isCheapestInput && isCheapestOutput
-                  ? "border-emerald-500/40 bg-emerald-500/5 shadow-xs"
-                  : "border-border bg-surface-elevated/40"
+                  ? "border-slate-900/40 bg-white shadow-xs"
+                  : "border-border bg-surface"
               }`}
             >
               <div className="space-y-3">
@@ -73,7 +73,7 @@ export function ComparisonPricing({ models, specsSummary }: ComparisonPricingPro
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-text-tertiary">Input Tokens</span>
                     {isCheapestInput && (
-                      <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-0.5">
+                      <span className="text-[10px] text-slate-900 font-medium flex items-center gap-0.5">
                         <Award className="h-2.5 w-2.5" /> Cheapest
                       </span>
                     )}
@@ -96,7 +96,7 @@ export function ComparisonPricing({ models, specsSummary }: ComparisonPricingPro
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-text-tertiary">Output Tokens</span>
                     {isCheapestOutput && (
-                      <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-0.5">
+                      <span className="text-[10px] text-slate-900 font-medium flex items-center gap-0.5">
                         <Award className="h-2.5 w-2.5" /> Cheapest
                       </span>
                     )}

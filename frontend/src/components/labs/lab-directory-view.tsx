@@ -195,6 +195,7 @@ export function LabDirectoryView() {
         title="AI Research Labs"
         description="Explore pioneering AI research laboratories, frontier foundation model creators, open-weight publishers, and academic research institutions."
         badge="Organizations"
+        annotation="research organizations & creators"
       >
         {pagination && (
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-text-secondary bg-surface-elevated border border-border px-3 py-1.5 rounded-lg">

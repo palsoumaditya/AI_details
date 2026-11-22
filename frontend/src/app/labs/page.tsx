@@ -5,7 +5,7 @@ import { LabCardSkeleton } from "@/components/labs/lab-card";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = {
-  title: "AI Research Labs & Organizations | OneAtlas.dev",
+  title: "AI Research Labs & Organizations | AI Details",
   description:
     "Explore AI research organizations including OpenAI, Anthropic, Google DeepMind, Meta AI, Mistral AI, DeepSeek, and their foundation model portfolios.",
 };
