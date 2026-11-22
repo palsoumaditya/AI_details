@@ -16,6 +16,7 @@ import {
   ProviderSlugParamSchema,
 } from "../shared/schemas/api";
 import type { IProvidersQueryService } from "./contracts/index";
+import { cacheService } from "./cache.service";
 
 /**
  * Provider Directory Query Service (Phase 4D.1 Hardened)
@@ -32,13 +33,18 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
    */
   async listProviders(inputParams?: ProvidersInputQuery): Promise<ProviderDirectoryResult> {
     const query: ProvidersQuery = ProvidersQuerySchema.parse(inputParams ?? {});
+    const cacheKey = JSON.stringify(query);
 
-    const page = query.page;
-    const limit = query.limit;
-    const skip = (page - 1) * limit;
+    return cacheService.getOrSet(
+      "providers",
+      cacheKey,
+      async () => {
+        const page = query.page;
+        const limit = query.limit;
+        const skip = (page - 1) * limit;
 
-    // 1. Build relational parameterized WHERE filters
-    const conditions: Prisma.Sql[] = [];
+        // 1. Build relational parameterized WHERE filters
+        const conditions: Prisma.Sql[] = [];
 
     if (query.q) {
       const searchPattern = `%${query.q}%`;
@@ -191,7 +197,10 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
         limit,
       },
     };
-  }
+    },
+    120
+  );
+}
 
   /**
    * Retrieve single provider details with PostgreSQL-aggregated metrics and paginated endpoint matrix
@@ -209,9 +218,14 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
     const query: ProviderEndpointsQuery = ProviderEndpointsQuerySchema.parse(
       endpointQuery ?? {}
     );
+    const cacheKey = `${canonicalSlug}:${JSON.stringify(query)}`;
 
-    // 1. Find provider record
-    const provider = await this.db.provider.findUnique({
+    return cacheService.getOrSet(
+      "providers",
+      cacheKey,
+      async () => {
+        // 1. Find provider record
+        const provider = await this.db.provider.findUnique({
       where: { slug: canonicalSlug },
       select: {
         id: true,
@@ -383,7 +397,10 @@ export class ProviderDirectoryQueryService implements IProvidersQueryService {
         limit,
       },
     };
-  }
+    },
+    120
+  );
+}
 }
 
 export const providerDirectoryQueryService = new ProviderDirectoryQueryService();

@@ -18,6 +18,7 @@ import type {
   ModelsCatalogResult,
 } from "./contracts/index";
 import { modelDetailQueryService } from "./model-detail-query.service";
+import { cacheService } from "./cache.service";
 
 /**
  * Model Catalog Query Service (Phase 4B)
@@ -33,99 +34,108 @@ export class ModelsQueryService implements IModelsQueryService {
    */
   async getModelsCatalog(inputQuery: ModelsCatalogInputQuery): Promise<ModelsCatalogResult> {
     const query: ModelsCatalogQuery = ModelsCatalogQuerySchema.parse(inputQuery);
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    const skip = (page - 1) * limit;
+    const cacheKey = JSON.stringify(query);
 
-    // 1. Build relational WHERE conditions
-    const where = this.buildWhereClause(query);
+    return cacheService.getOrSet(
+      "models",
+      cacheKey,
+      async () => {
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 20;
+        const skip = (page - 1) * limit;
 
-    // 2. Determine Sorting Strategy
-    const isPriceSort =
-      query.sort === "input_price_asc" ||
-      query.sort === "input_price_desc" ||
-      query.sort === "output_price_asc" ||
-      query.sort === "output_price_desc";
+        // 1. Build relational WHERE conditions
+        const where = this.buildWhereClause(query);
 
-    let models: ModelCatalogItemDto[] = [];
-    let total = 0;
+        // 2. Determine Sorting Strategy
+        const isPriceSort =
+          query.sort === "input_price_asc" ||
+          query.sort === "input_price_desc" ||
+          query.sort === "output_price_asc" ||
+          query.sort === "output_price_desc";
 
-    if (isPriceSort) {
-      // Execute database-level price sorting
-      const priceSortResult = await this.queryWithPriceSorting(where, query, skip, limit);
-      models = priceSortResult.models;
-      total = priceSortResult.total;
-    } else {
-      // Standard Prisma query with index-accelerated sorting
-      const orderBy = this.buildStandardOrderBy(query.sort);
+        let models: ModelCatalogItemDto[] = [];
+        let total = 0;
 
-      const [records, count] = await Promise.all([
-        this.db.model.findMany({
-          where,
-          orderBy,
-          skip,
-          take: limit,
-          include: {
-            labs: {
+        if (isPriceSort) {
+          // Execute database-level price sorting
+          const priceSortResult = await this.queryWithPriceSorting(where, query, skip, limit);
+          models = priceSortResult.models;
+          total = priceSortResult.total;
+        } else {
+          // Standard Prisma query with index-accelerated sorting
+          const orderBy = this.buildStandardOrderBy(query.sort);
+
+          const [records, count] = await Promise.all([
+            this.db.model.findMany({
+              where,
+              orderBy,
+              skip,
+              take: limit,
               include: {
-                aiLab: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                  },
-                },
-              },
-            },
-            endpoints: {
-              where: {
-                status: "ONLINE",
-              },
-              include: {
-                provider: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                  },
-                },
-                pricingRecords: {
-                  orderBy: { observedAt: "desc" },
-                  take: 1,
+                labs: {
                   include: {
-                    source: {
+                    aiLab: {
                       select: {
+                        id: true,
+                        name: true,
                         slug: true,
                       },
                     },
                   },
                 },
+                endpoints: {
+                  where: {
+                    status: "ONLINE",
+                  },
+                  include: {
+                    provider: {
+                      select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                      },
+                    },
+                    pricingRecords: {
+                      orderBy: { observedAt: "desc" },
+                      take: 1,
+                      include: {
+                        source: {
+                          select: {
+                            slug: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
               },
-            },
-          },
-        }),
-        this.db.model.count({ where }),
-      ]);
+            }),
+            this.db.model.count({ where }),
+          ]);
 
-      total = count;
-      models = records.map((record) => this.mapToCatalogItemDto(record));
-    }
+          total = count;
+          models = records.map((record) => this.mapToCatalogItemDto(record));
+        }
 
-    const totalPages = Math.ceil(total / limit) || 1;
-    const pagination: PaginationMeta = {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    };
+        const totalPages = Math.ceil(total / limit) || 1;
+        const pagination: PaginationMeta = {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        };
 
-    return {
-      models,
-      pagination,
-      appliedFilters: query,
-    };
+        return {
+          models,
+          pagination,
+          appliedFilters: query,
+        };
+      },
+      60
+    );
   }
 
   // ==========================================

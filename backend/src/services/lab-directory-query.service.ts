@@ -17,6 +17,7 @@ import {
   LabSlugParamSchema,
 } from "../shared/schemas/api";
 import type { ILabsQueryService } from "./contracts/index";
+import { cacheService } from "./cache.service";
 
 /**
  * AI Lab Directory Query Service (Phase 4D.1 Hardened)
@@ -32,13 +33,18 @@ export class LabDirectoryQueryService implements ILabsQueryService {
    */
   async listLabs(inputParams?: LabsInputQuery): Promise<AiLabDirectoryResult> {
     const query: LabsQuery = LabsQuerySchema.parse(inputParams ?? {});
+    const cacheKey = JSON.stringify(query);
 
-    const page = query.page;
-    const limit = query.limit;
-    const skip = (page - 1) * limit;
+    return cacheService.getOrSet(
+      "labs",
+      cacheKey,
+      async () => {
+        const page = query.page;
+        const limit = query.limit;
+        const skip = (page - 1) * limit;
 
-    // 1. Build relational parameterized WHERE filters
-    const conditions: Prisma.Sql[] = [];
+        // 1. Build relational parameterized WHERE filters
+        const conditions: Prisma.Sql[] = [];
 
     if (query.q) {
       const searchPattern = `%${query.q}%`;
@@ -147,7 +153,10 @@ export class LabDirectoryQueryService implements ILabsQueryService {
         limit,
       },
     };
-  }
+    },
+    120
+  );
+}
 
   /**
    * Retrieve single AI Lab details with PostgreSQL-aggregated family distribution and paginated distinct models
@@ -163,9 +172,14 @@ export class LabDirectoryQueryService implements ILabsQueryService {
 
     const canonicalSlug = slugValidation.data.slug;
     const query: LabModelsQuery = LabModelsQuerySchema.parse(modelQuery ?? {});
+    const cacheKey = `${canonicalSlug}:${JSON.stringify(query)}`;
 
-    // 1. Find AI Lab record
-    const lab = await this.db.aiLab.findUnique({
+    return cacheService.getOrSet(
+      "labs",
+      cacheKey,
+      async () => {
+        // 1. Find AI Lab record
+        const lab = await this.db.aiLab.findUnique({
       where: { slug: canonicalSlug },
       select: {
         id: true,
@@ -319,7 +333,10 @@ export class LabDirectoryQueryService implements ILabsQueryService {
         limit,
       },
     };
-  }
+    },
+    120
+  );
+}
 }
 
 export const labDirectoryQueryService = new LabDirectoryQueryService();

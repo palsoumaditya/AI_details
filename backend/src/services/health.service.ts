@@ -1,6 +1,7 @@
-import { prisma, PrismaClient } from "../database/index";
+import { prisma, PrismaClient, getDatabasePoolMetrics } from "../database/index";
 import type { HealthDto } from "../shared/types/api";
 import type { IHealthService } from "./contracts/index";
+import { cacheService } from "./cache.service";
 
 const API_VERSION = "1.0.0";
 const DEFAULT_TIMEOUT_MS = 3000;
@@ -70,6 +71,9 @@ export class HealthService implements IHealthService {
     const overallStatus: "healthy" | "degraded" | "unhealthy" =
       dbStatus === "up" ? "healthy" : "degraded";
 
+    const poolMetrics = getDatabasePoolMetrics();
+    const cacheMetrics = cacheService.getMetrics();
+
     return {
       status: overallStatus,
       version: API_VERSION,
@@ -83,6 +87,22 @@ export class HealthService implements IHealthService {
           status: dbStatus,
           latencyMs: dbLatencyMs,
           message: dbMessage,
+          details: {
+            poolTotal: poolMetrics.totalCount,
+            poolIdle: poolMetrics.idleCount,
+            poolWaiting: poolMetrics.waitingCount,
+          },
+        },
+        cache: {
+          status: "up",
+          details: {
+            driver: cacheMetrics.driver,
+            hitRatio: cacheMetrics.hitRatio,
+            hits: cacheMetrics.hits,
+            misses: cacheMetrics.misses,
+            inMemoryKeys: cacheMetrics.inMemoryKeys,
+            redisConnected: cacheMetrics.isRedisConnected,
+          },
         },
       },
     };

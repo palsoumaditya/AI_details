@@ -20,6 +20,7 @@ import {
   PricingHistoryQuery,
 } from "../shared/schemas/api";
 import type { IModelDetailQueryService } from "./contracts/index";
+import { cacheService } from "./cache.service";
 
 /**
  * Model Detail Query Service (Phase 4C)
@@ -44,8 +45,12 @@ export class ModelDetailQueryService implements IModelDetailQueryService {
 
     const canonicalSlug = slugValidation.data.slug;
 
-    // 1. Fetch canonical model and nested relations with bounded select projections
-    const model = await this.db.model.findUnique({
+    return cacheService.getOrSet(
+      "model_details",
+      canonicalSlug,
+      async () => {
+        // 1. Fetch canonical model and nested relations with bounded select projections
+        const model = await this.db.model.findUnique({
       where: { slug: canonicalSlug },
       select: {
         id: true,
@@ -411,7 +416,10 @@ export class ModelDetailQueryService implements IModelDetailQueryService {
       provenance,
       dataQuality,
     };
-  }
+    },
+    120
+  );
+}
 
   /**
    * Retrieve paginated pricing observation history for a model
@@ -431,9 +439,14 @@ export class ModelDetailQueryService implements IModelDetailQueryService {
 
     const canonicalSlug = slugValidation.data.slug;
     const query: PricingHistoryQuery = PricingHistoryQuerySchema.parse(inputQuery);
+    const cacheKey = `pricing:${canonicalSlug}:${JSON.stringify(query)}`;
 
-    // Verify model exists
-    const model = await this.db.model.findUnique({
+    return cacheService.getOrSet(
+      "model_details",
+      cacheKey,
+      async () => {
+        // Verify model exists
+        const model = await this.db.model.findUnique({
       where: { slug: canonicalSlug },
       select: { id: true, slug: true },
     });
@@ -551,7 +564,10 @@ export class ModelDetailQueryService implements IModelDetailQueryService {
         limit,
       },
     };
-  }
+    },
+    60
+  );
+}
 }
 
 /** Singleton instance */

@@ -10,4 +10,10 @@ export { ProviderDirectoryQueryService, providerDirectoryQueryService } from "./
 export { LabDirectoryQueryService, labDirectoryQueryService } from "./lab-directory-query.service";
 export { CompareQueryService, compareQueryService } from "./compare-query.service";
 export { RankingsQueryService, rankingsQueryService } from "./rankings-query.service";
+export {
+  CacheService,
+  cacheService,
+  getCacheService,
+} from "./cache.service";
+export type { CacheMetrics, CacheOptions } from "./cache.service";
 

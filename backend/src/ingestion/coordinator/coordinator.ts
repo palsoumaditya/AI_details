@@ -5,6 +5,7 @@ import { AdapterRegistry } from "./adapter-registry";
 import { ExecutionPlan } from "./execution-plan";
 import { ResultAggregator } from "./result-aggregator";
 import { classifyError } from "./error-handler";
+import { cacheService } from "../../services/cache.service";
 import type {
   IngestionExecutionMode,
   IngestionStage,
@@ -132,6 +133,10 @@ export class IngestionCoordinator {
       if (mode === "APPLY") {
         await this.batchService.finalizeBatch(batchId, batchResult);
         logger.info(`Finalized SyncBatch ${batchId} with status: ${batchResult.status}`);
+        // Invalidate stale caches so user-facing read traffic immediately reflects updated catalog
+        await cacheService.invalidateAll().catch((invErr) => {
+          logger.warn("Cache invalidation post-sync encountered non-critical error:", { error: String(invErr) });
+        });
       }
 
       return batchResult;

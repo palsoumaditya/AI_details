@@ -6,6 +6,8 @@ import {
   paginatedResponse,
   validateQueryParams,
   logApiRequest,
+  generateETag,
+  handleETagCheck,
 } from "@/lib/api";
 import { ModelsCatalogQuerySchema } from "@oneatlas/backend/shared";
 
@@ -39,6 +41,17 @@ export async function GET(request: NextRequest) {
     // 2. Delegate querying to Backend Application Service
     const result = await modelsQueryService.getModelsCatalog(validatedQuery);
 
+    // ETag check for conditional HTTP 304 Not Modified
+    const etag = generateETag({ m: result.models, p: result.pagination });
+    const notModified = handleETagCheck(
+      request.headers.get("if-none-match"),
+      etag,
+      "public, s-maxage=60, stale-while-revalidate=300"
+    );
+    if (notModified) {
+      return notModified;
+    }
+
     // 3. Structured observability logging
     logApiRequest({
       requestId: ctx.requestId,
@@ -55,6 +68,7 @@ export async function GET(request: NextRequest) {
       ctx.requestId,
       200,
       {
+        ETag: etag,
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
       }
     );

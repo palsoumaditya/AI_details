@@ -12,6 +12,7 @@ import {
   RankingsLeaderboardInputQuery,
 } from "../shared/schemas/api";
 import type { IRankingsQueryService } from "./contracts/index";
+import { cacheService } from "./cache.service";
 
 /**
  * Rankings & Benchmark Leaderboard Query Service (Phase 4F / Task 6)
@@ -33,8 +34,13 @@ export class RankingsQueryService implements IRankingsQueryService {
     query?: RankingsDirectoryInputQuery
   ): Promise<RankingsDirectoryResult> {
     const validated = RankingsDirectoryQuerySchema.parse(query ?? {});
+    const cacheKey = JSON.stringify(validated);
 
-    const where: Prisma.BenchmarkWhereInput = {};
+    return cacheService.getOrSet(
+      "rankings",
+      cacheKey,
+      async () => {
+        const where: Prisma.BenchmarkWhereInput = {};
 
     if (validated.category && validated.category !== "ALL") {
       where.category = validated.category as any;
@@ -121,7 +127,10 @@ export class RankingsQueryService implements IRankingsQueryService {
         q: validated.q,
       },
     };
-  }
+    },
+    60
+  );
+}
 
   /**
    * Fetch ranked model leaderboard for a specific benchmark.
@@ -134,9 +143,14 @@ export class RankingsQueryService implements IRankingsQueryService {
     query?: RankingsLeaderboardInputQuery
   ): Promise<BenchmarkLeaderboardResult | null> {
     const validated = RankingsLeaderboardQuerySchema.parse(query ?? {});
+    const cacheKey = `${benchmarkSlug.toLowerCase()}:${JSON.stringify(validated)}`;
 
-    // 1. Fetch Benchmark Metadata
-    const benchmark = await this.db.benchmark.findFirst({
+    return cacheService.getOrSet(
+      "rankings",
+      cacheKey,
+      async () => {
+        // 1. Fetch Benchmark Metadata
+        const benchmark = await this.db.benchmark.findFirst({
       where: { slug: benchmarkSlug },
       orderBy: { version: "desc" },
     });
@@ -398,7 +412,10 @@ export class RankingsQueryService implements IRankingsQueryService {
         sort: validated.sort,
       },
     };
-  }
+    },
+    60
+  );
+}
 }
 
 export const rankingsQueryService = new RankingsQueryService();

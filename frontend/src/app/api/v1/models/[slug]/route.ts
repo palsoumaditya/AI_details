@@ -6,6 +6,8 @@ import {
   successResponse,
   logApiRequest,
   ApiError,
+  generateETag,
+  handleETagCheck,
 } from "@/lib/api";
 import { ModelSlugParamSchema } from "@oneatlas/backend/shared";
 
@@ -44,6 +46,16 @@ export async function GET(
       throw ApiError.notFound(`Model '${slug}' not found.`);
     }
 
+    const etag = generateETag(model);
+    const notModified = handleETagCheck(
+      request.headers.get("if-none-match"),
+      etag,
+      "public, s-maxage=60, stale-while-revalidate=300"
+    );
+    if (notModified) {
+      return notModified;
+    }
+
     // 4. Structured observability logging
     logApiRequest({
       requestId: ctx.requestId,
@@ -55,6 +67,7 @@ export async function GET(
 
     // 5. Return standardized success response with public cache headers
     return successResponse(model, ctx.requestId, 200, {
+      ETag: etag,
       "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
     });
   } catch (err: unknown) {
