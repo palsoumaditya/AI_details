@@ -4,9 +4,9 @@ import { Prisma } from "@oneatlas/database";
  * Raw Models.dev API contracts and normalized OneAtlas domain types.
  */
 
-// ==========================================
-// RAW MODELs.DEV RESPONSE TYPES
-// ==========================================
+/**
+ * Raw Models.dev API payload shapes.
+ */
 
 export interface ModelsDevRawModality {
   input?: string[] | null;
@@ -104,9 +104,9 @@ export interface ModelsDevRawCatalogResponse {
   models?: Record<string, ModelsDevRawModel> | null;
 }
 
-// ==========================================
-// NORMALIZED ONEATLAS DOMAIN TYPES
-// ==========================================
+/**
+ * Normalized OneAtlas domain types.
+ */
 
 export interface NormalizedPricing {
   inputPricePerMillion: Prisma.Decimal | null;

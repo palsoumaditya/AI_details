@@ -11,6 +11,16 @@ import { CandidateRanker } from "./candidate-ranker";
 import { DecisionEngine } from "./decision-engine";
 import { ConflictDetector } from "./conflict-detector";
 
+/**
+ * Orchestrator for resolving raw external model identifiers to canonical database models.
+ *
+ * Evaluates candidate identity using a 5-tier resolution strategy hierarchy:
+ * 1. Exact Source Mapping: Prior verified mapping between source and external ID.
+ * 2. Authoritative Canonical ID: Source provides an explicit canonical identifier.
+ * 3. Verified Explicit Alias: Matches a curated model alias or variant pattern.
+ * 4. Heuristic Candidate Generation: Multi-attribute similarity ranking (persisted for manual review).
+ * 5. Unresolved: Retained as unlinked record requiring human adjudication.
+ */
 export class ModelResolver {
   private readonly exactMatcher: ExactMatcher;
   private readonly canonicalMatcher: CanonicalMatcher;
@@ -31,20 +41,16 @@ export class ModelResolver {
   }
 
   /**
-   * Resolves canonical model identity across the ordered 5 strategies.
+   * Resolves external model input to a canonical entity through hierarchical strategy evaluation.
    *
-   * 1. Strategy 1: Existing exact source mapping
-   * 2. Strategy 2: Authoritative canonical_model_id
-   * 3. Strategy 3: Verified explicit alias mappings
-   * 4. Strategy 4: Heuristic candidate generation (retained for review, NO automatic merge)
-   * 5. Strategy 5: Unresolved identity
+   * @param input - Raw external model payload with source identifier and model metadata.
+   * @param options - Resolution options, including whether to persist heuristic candidates.
+   * @returns ResolutionResult containing matched canonical ID, strategy used, evidence, and conflicts.
    */
   async resolveModel(input: ExternalModelInput, options: { persistCandidates?: boolean } = {}): Promise<ResolutionResult> {
     const shouldPersist = options.persistCandidates ?? true;
 
-    // -------------------------------------------------------------
-    // STRATEGY 1: Existing Exact Source Mapping (sourceId + externalModelId)
-    // -------------------------------------------------------------
+    // Strategy 1: Match against verified source-to-model mapping table
     const exactMatch = await this.exactMatcher.match(input);
     if (exactMatch.isMatch && exactMatch.model) {
       const conflicts = this.conflictDetector.detectModelConflicts(exactMatch.model, input);
@@ -57,9 +63,7 @@ export class ModelResolver {
       });
     }
 
-    // -------------------------------------------------------------
-    // STRATEGY 2: Authoritative canonical_model_id
-    // -------------------------------------------------------------
+    // Strategy 2: Match against authoritative canonical model identifier provided by source
     const canonicalMatch = await this.canonicalMatcher.match(input);
     if (canonicalMatch.isMatch && canonicalMatch.model) {
       const conflicts = this.conflictDetector.detectModelConflicts(canonicalMatch.model, input);
@@ -72,9 +76,7 @@ export class ModelResolver {
       });
     }
 
-    // -------------------------------------------------------------
-    // STRATEGY 3: Verified Explicit Alias Mapping
-    // -------------------------------------------------------------
+    // Strategy 3: Match against curated explicit aliases and regular expressions
     const aliasMatch = await this.aliasResolver.match(input);
     if (aliasMatch.isMatch && aliasMatch.model) {
       const conflicts = this.conflictDetector.detectModelConflicts(aliasMatch.model, input);
@@ -87,9 +89,7 @@ export class ModelResolver {
       });
     }
 
-    // -------------------------------------------------------------
-    // STRATEGY 4: Heuristic Candidate Generation
-    // -------------------------------------------------------------
+    // Strategy 4: Compute similarity scores across potential candidates for review
     const rawCandidates = await this.candidateGenerator.generateCandidates(input);
     const rankedCandidates = this.candidateRanker.rank(rawCandidates, {
       minScoreThreshold: 30,
@@ -97,7 +97,6 @@ export class ModelResolver {
     });
 
     if (rankedCandidates.length > 0) {
-      // Check existing candidate records in database to avoid duplicate rows or resurfacing REJECTED suggestions
       let topCandidateRecordId: string | undefined;
 
       if (shouldPersist) {
@@ -140,9 +139,7 @@ export class ModelResolver {
       return res;
     }
 
-    // -------------------------------------------------------------
-    // STRATEGY 5: Unresolved Identity
-    // -------------------------------------------------------------
+    // Strategy 5: Fallback when no automated or heuristic resolution threshold is met
     return this.decisionEngine.evaluate({
       strategy: "STRATEGY_5_UNRESOLVED",
       evidence: [],

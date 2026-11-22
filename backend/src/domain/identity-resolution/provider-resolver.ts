@@ -13,16 +13,22 @@ export interface NormalizedProviderInput {
 
 export type ProviderResolutionStatus = "inserted" | "updated" | "unchanged";
 
+/**
+ * Resolves or registers canonical providers and maintains provider source mappings.
+ *
+ * Ensures cross-source idempotency: shared inference providers discovered across multiple sources
+ * (e.g., OpenRouter and Models.dev) are matched by slug to prevent perpetual churn or duplicate entities.
+ */
 export class ProviderResolver {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
-   * Resolves or creates a canonical Provider and links ProviderSourceMapping.
+   * Resolves an incoming provider definition against canonical records or registers a new provider.
    *
-   * CRITICAL IDEMPOTENCY FIX:
-   * Cross-source shared providers (e.g. 'chutes', 'tenstorrent' present in both OpenRouter and Models.dev)
-   * must not trigger perpetual updates when two sources observe slightly different websites.
-   * If the source's own payloadHash is identical, the mapping and provider are unchanged.
+   * @param sourceId - Database identifier for the originating external source.
+   * @param norm - Normalized provider details including slug, name, and optional documentation URL.
+   * @param tx - Optional transaction client to participate in an outer transaction.
+   * @returns Canonical provider entity and resolution status ('inserted', 'updated', or 'unchanged').
    */
   async resolveOrCreateProvider(
     sourceId: string,
@@ -31,7 +37,7 @@ export class ProviderResolver {
   ): Promise<{ provider: Provider; status: ProviderResolutionStatus }> {
     const db = tx || this.prisma;
 
-    // 1. Check existing ProviderSourceMapping for this exact source + externalProviderId
+    // Check for an existing verified mapping between this source and provider ID
     const existingMapping = await db.providerSourceMapping.findUnique({
       where: {
         sourceId_externalProviderId: {
@@ -45,18 +51,17 @@ export class ProviderResolver {
     if (existingMapping) {
       const provider = existingMapping.provider;
 
-      // If source payloadHash hasn't changed, this source has NO new data -> UNCHANGED
+      // Unchanged payload hash indicates no updates are needed
       if (norm.payloadHash && existingMapping.payloadHash === norm.payloadHash) {
         return { provider, status: "unchanged" };
       }
 
-      // If hash changed or absent, inspect whether core fields actually changed
+      // Check for actual field differences when hashes mismatch or are absent
       const isNameChanged = provider.name !== norm.name;
       const isWebsiteChanged = norm.website !== null && provider.website !== norm.website;
       const isDocChanged = norm.apiDocUrl !== null && provider.apiDocUrl !== norm.apiDocUrl;
 
       if (!isNameChanged && !isWebsiteChanged && !isDocChanged) {
-        // Hash changed but normalized values identical -> update mapping hash only
         await db.providerSourceMapping.update({
           where: { id: existingMapping.id },
           data: {
@@ -67,7 +72,6 @@ export class ProviderResolver {
         return { provider, status: "unchanged" };
       }
 
-      // Fields changed -> update provider and mapping
       const updatedProvider = await db.provider.update({
         where: { id: provider.id },
         data: {
@@ -88,13 +92,12 @@ export class ProviderResolver {
       return { provider: updatedProvider, status: "updated" };
     }
 
-    // 2. Check canonical Provider by slug (cross-source provider linking)
+    // Match by slug across existing canonical providers to link multi-source providers
     const existingProviderBySlug = await db.provider.findUnique({
       where: { slug: norm.slug },
     });
 
     if (existingProviderBySlug) {
-      // Create source mapping for this new source to the existing canonical provider
       await db.providerSourceMapping.create({
         data: {
           providerId: existingProviderBySlug.id,
@@ -106,7 +109,7 @@ export class ProviderResolver {
         },
       });
 
-      // Non-destructive update: only fill missing fields
+      // Fill in previously missing metadata non-destructively
       const needsWebsite = !existingProviderBySlug.website && norm.website;
       const needsDoc = !existingProviderBySlug.apiDocUrl && norm.apiDocUrl;
 
@@ -124,7 +127,7 @@ export class ProviderResolver {
       return { provider: existingProviderBySlug, status: "unchanged" };
     }
 
-    // 3. Brand new provider: insert Provider and ProviderSourceMapping
+    // Insert brand-new canonical provider and corresponding source mapping
     const newProvider = await db.provider.create({
       data: {
         slug: norm.slug,

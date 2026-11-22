@@ -5,7 +5,7 @@ import {
 } from "../constants/api";
 
 /**
- * Reusable Zod Validation Schemas for Incoming Request Parameters (Phase 4A & 4B)
+ * Reusable Zod Validation Schemas for Incoming Request Parameters.
  */
 
 /** Pagination Query Parameters */
@@ -73,7 +73,7 @@ export const HealthCheckQuerySchema = z.object({
 export type HealthCheckQuery = z.infer<typeof HealthCheckQuerySchema>;
 
 /**
- * Model Catalog Query Parameters Schema (Phase 4B)
+ * Model Catalog Query Parameters Schema.
  *
  * Validates, normalizes, and sanitizes all incoming filters for GET /api/v1/models.
  */
@@ -212,11 +212,11 @@ export type ModelsCatalogInputQuery = z.input<typeof ModelsCatalogQuerySchema>;
 export const ModelsQueryFilterSchema = ModelsCatalogQuerySchema;
 export type ModelsQueryFilter = ModelsCatalogQuery;
 
-/** Model Slug Path Parameter Schema (Phase 4C) */
+/** Model Slug Path Parameter Schema */
 export const ModelSlugParamSchema = SlugParamSchema;
 export type ModelSlugParam = SlugParam;
 
-/** Pricing History Query Schema (Phase 4C) */
+/** Pricing History Query Schema */
 export const PricingHistoryQuerySchema = z
   .object({
     provider: z.string().trim().max(100, "Provider slug cannot exceed 100 characters").optional(),
@@ -253,9 +253,9 @@ export const PricingHistoryQuerySchema = z
 export type PricingHistoryQuery = z.infer<typeof PricingHistoryQuerySchema>;
 export type PricingHistoryInputQuery = z.input<typeof PricingHistoryQuerySchema>;
 
-// ==========================================
-// PROVIDER & AI LAB DIRECTORY SCHEMAS (Phase 4D)
-// ==========================================
+/**
+ * Provider & AI Lab Directory Validation Schemas.
+ */
 
 const booleanPreprocessor = (val: unknown) => {
   if (typeof val === "string") {
@@ -392,7 +392,7 @@ export const LabSlugParamSchema = SlugParamSchema;
 export type LabSlugParam = SlugParam;
 
 /**
- * Rankings & Benchmarks Query Schemas (Phase 4F / Task 6)
+ * Rankings & Benchmarks Query Schemas.
  */
 
 export const RankingsDirectoryQuerySchema = z.object({

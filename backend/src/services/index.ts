@@ -1,5 +1,5 @@
 /**
- * @oneatlas/backend — Services public API (Phase 4A & 4B)
+ * Services public API module providing query, health, and caching services.
  */
 
 export * from "./contracts/index";

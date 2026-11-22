@@ -1,16 +1,14 @@
 import Redis from "ioredis";
 
 /**
- * OneAtlas Production-Ready Resilient Cache Engine (Cache-Aside Pattern)
+ * Resilient multi-tier Cache Engine implementing the Cache-Aside pattern.
  *
- * Requirements:
- * 1. Distributed Redis caching when REDIS_URL is configured.
- * 2. High-performance bounded in-memory LRU fallback when Redis is absent/unreachable.
- * 3. Graceful degradation: Redis disconnects or errors NEVER crash user requests.
- * 4. Cache stampede protection: In-flight single-flight promise deduplication.
- * 5. Tag/Namespace-based invalidation with versioning.
- * 6. Cache metrics tracking (hits, misses, errors, hit ratio).
- * 7. Never cache errors or null values unless explicitly configured.
+ * Architecture:
+ * - L2 distributed caching backed by Redis when REDIS_URL is configured.
+ * - L1 bounded in-memory LRU cache fallback when Redis is absent or unreachable.
+ * - Graceful degradation: Redis connection drops or timeouts never throw or fail user queries.
+ * - Cache stampede prevention: in-flight promise deduplication (single-flight execution).
+ * - O(1) group invalidation through namespace version offsets.
  */
 
 export interface CacheOptions {
@@ -40,13 +38,9 @@ export class CacheService {
   private memoryCache = new Map<string, InMemoryCacheEntry<any>>();
   private maxMemoryEntries = 2000;
 
-  // Single-flight promise deduplication to prevent cache stampedes
   private inFlightFetches = new Map<string, Promise<any>>();
-
-  // Namespace version offsets for instant O(1) group invalidation
   private namespaceVersions = new Map<string, number>();
 
-  // Metrics
   private hits = 0;
   private misses = 0;
   private errors = 0;
@@ -63,7 +57,6 @@ export class CacheService {
           lazyConnect: true,
           retryStrategy: (times) => {
             if (times > 5) {
-              // Stop aggressive reconnection; retry periodically
               return 10_000;
             }
             return Math.min(times * 500, 3000);
@@ -78,7 +71,6 @@ export class CacheService {
         this.redisClient.on("error", (err) => {
           this.isRedisReady = false;
           this.errors++;
-          // Log warning once, don't crash
           console.warn("[CacheService] Redis connection error; degrading to memory cache:", err.message);
         });
 
@@ -86,7 +78,6 @@ export class CacheService {
           this.isRedisReady = false;
         });
 
-        // Trigger connect in background
         this.redisClient.connect().catch((err) => {
           this.isRedisReady = false;
           console.warn("[CacheService] Initial Redis connect failed, using memory fallback:", err.message);
@@ -100,17 +91,30 @@ export class CacheService {
   }
 
   /**
-   * Generates a fully qualified, versioned cache key.
+   * Generates a fully qualified, versioned cache key scoped to a namespace.
+   *
+   * @param namespace - Logical grouping (e.g., 'models', 'providers').
+   * @param key - Specific cache identifier.
+   * @returns Formatted key string with version offset.
    */
   public buildKey(namespace: string, key: string): string {
     const version = this.namespaceVersions.get(namespace) ?? 1;
-    // Normalize key
     const sanitizedKey = key.replace(/\s+/g, "_");
     return `oneatlas:v1:${namespace}:v${version}:${sanitizedKey}`;
   }
 
   /**
-   * Primary Cache-Aside method with single-flight stampede suppression.
+   * Cache-aside getter and setter with single-flight stampede suppression.
+   *
+   * If the requested key is cached and valid, returns immediately. If multiple concurrent
+   * requests target the same missing key, only one fetcher executes while others await
+   * the shared in-flight promise.
+   *
+   * @param namespace - Logical cache namespace.
+   * @param key - Cache key within the namespace.
+   * @param fetcher - Asynchronous producer function executed on cache miss.
+   * @param ttlSeconds - Time-to-live in seconds (defaults to 60).
+   * @returns Cached or newly fetched value.
    */
   async getOrSet<T>(
     namespace: string,
@@ -120,21 +124,19 @@ export class CacheService {
   ): Promise<T> {
     const fullKey = this.buildKey(namespace, key);
 
-    // 1. Try reading from cache
     try {
       const cached = await this.get<T>(fullKey);
       if (cached !== null && cached !== undefined) {
         this.hits++;
         return cached;
       }
-    } catch (err) {
+    } catch {
       this.errors++;
-      // Proceed to fetch on read failure
     }
 
     this.misses++;
 
-    // 2. Prevent cache stampede: single-flight in-flight request coalescing
+    // Deduplicate concurrent in-flight requests for the same key
     if (this.inFlightFetches.has(fullKey)) {
       return this.inFlightFetches.get(fullKey)! as Promise<T>;
     }
@@ -143,7 +145,6 @@ export class CacheService {
       try {
         const freshData = await fetcher();
 
-        // Only cache valid, non-null/non-undefined data
         if (freshData !== null && freshData !== undefined) {
           await this.set(fullKey, freshData, ttlSeconds).catch(() => {});
         }
@@ -159,10 +160,12 @@ export class CacheService {
   }
 
   /**
-   * Retrieve an item from Redis or memory cache.
+   * Retrieves an entry from Redis or local in-memory LRU cache.
+   *
+   * @param fullKey - Fully qualified cache key.
+   * @returns Deserialized value or null on cache miss / expiration.
    */
   async get<T>(fullKey: string): Promise<T | null> {
-    // Check Redis first if available
     if (this.isRedisReady && this.redisClient) {
       try {
         const data = await this.redisClient.get(fullKey);
@@ -170,13 +173,11 @@ export class CacheService {
           return JSON.parse(data) as T;
         }
         return null;
-      } catch (err) {
+      } catch {
         this.errors++;
-        // Fallback to memory
       }
     }
 
-    // Check in-memory LRU
     const entry = this.memoryCache.get(fullKey);
     if (!entry) return null;
 
@@ -189,23 +190,25 @@ export class CacheService {
   }
 
   /**
-   * Store an item in Redis and/or memory cache.
+   * Stores an entry in Redis and local memory cache with TTL expiration.
+   *
+   * @param fullKey - Fully qualified cache key.
+   * @param value - Value to serialize and store.
+   * @param ttlSeconds - Time-to-live in seconds.
    */
   async set<T>(fullKey: string, value: T, ttlSeconds: number): Promise<void> {
     const serialized = JSON.stringify(value);
 
-    // Save to Redis if available
     if (this.isRedisReady && this.redisClient) {
       try {
         await this.redisClient.set(fullKey, serialized, "EX", ttlSeconds);
-      } catch (err) {
+      } catch {
         this.errors++;
       }
     }
 
-    // Always keep in memory cache for ultra-fast L1 retrieval
+    // Enforce memory bounds by evicting oldest keys when capacity is reached
     if (this.memoryCache.size >= this.maxMemoryEntries) {
-      // Evict oldest entries
       const oldestKeys = Array.from(this.memoryCache.keys()).slice(0, 100);
       for (const k of oldestKeys) {
         this.memoryCache.delete(k);
@@ -219,7 +222,10 @@ export class CacheService {
   }
 
   /**
-   * Invalidate a single key.
+   * Removes an individual key from both memory and Redis cache.
+   *
+   * @param namespace - Logical cache namespace.
+   * @param key - Cache key to evict.
    */
   async delete(namespace: string, key: string): Promise<void> {
     const fullKey = this.buildKey(namespace, key);
@@ -228,20 +234,21 @@ export class CacheService {
     if (this.isRedisReady && this.redisClient) {
       try {
         await this.redisClient.del(fullKey);
-      } catch (err) {
+      } catch {
         this.errors++;
       }
     }
   }
 
   /**
-   * Invalidate an entire namespace in O(1) time by bumping the version offset.
+   * Invalidates an entire namespace in O(1) time by incrementing the namespace version offset.
+   *
+   * @param namespace - Logical namespace to invalidate.
    */
   async invalidateNamespace(namespace: string): Promise<void> {
     const currentVersion = this.namespaceVersions.get(namespace) ?? 1;
     this.namespaceVersions.set(namespace, currentVersion + 1);
 
-    // Prune in-memory cache of old namespace keys
     const prefix = `oneatlas:v1:${namespace}:`;
     for (const k of this.memoryCache.keys()) {
       if (k.startsWith(prefix)) {
@@ -249,18 +256,17 @@ export class CacheService {
       }
     }
 
-    // If Redis is active, attempt SCAN & DEL in background or set namespace version key in Redis
     if (this.isRedisReady && this.redisClient) {
       try {
         await this.redisClient.incr(`oneatlas:v1:version:${namespace}`);
-      } catch (err) {
+      } catch {
         this.errors++;
       }
     }
   }
 
   /**
-   * Invalidate all namespaces across the platform.
+   * Invalidates all configured cache namespaces across the application.
    */
   async invalidateAll(): Promise<void> {
     const namespaces = ["models", "model_details", "providers", "labs", "rankings"];
@@ -269,7 +275,7 @@ export class CacheService {
   }
 
   /**
-   * Retrieve real-time cache metrics.
+   * Returns operational telemetry and performance metrics for the cache.
    */
   getMetrics(): CacheMetrics {
     const totalRequests = this.hits + this.misses;
@@ -287,7 +293,7 @@ export class CacheService {
   }
 
   /**
-   * Cleanly disconnects Redis on process shutdown.
+   * Gracefully shuts down active Redis connections.
    */
   async disconnect(): Promise<void> {
     if (this.redisClient) {
@@ -303,7 +309,6 @@ export class CacheService {
   }
 }
 
-// Global process singleton
 const globalForCache = globalThis as unknown as {
   cacheService?: CacheService;
 };
