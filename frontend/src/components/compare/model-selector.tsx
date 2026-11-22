@@ -24,21 +24,6 @@ export interface ModelSelectorProps {
   onClearAll: () => void;
 }
 
-const PRESET_COMPARISONS = [
-  {
-    name: "Frontier Flagships",
-    slugs: ["gpt-4o", "claude-3-5-sonnet"],
-  },
-  {
-    name: "Reasoning Leaders",
-    slugs: ["o1", "deepseek-r1"],
-  },
-  {
-    name: "Open Weight Giants",
-    slugs: ["llama-3-3-70b-instruct", "qwen-2-5-72b-instruct"],
-  },
-];
-
 export function ModelSelector({
   selectedSlugs,
   onAddSlug,
@@ -50,8 +35,42 @@ export function ModelSelector({
   const [results, setResults] = useState<ModelCatalogItemDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [presets, setPresets] = useState<{ name: string; slugs: string[] }[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isMaxReached = selectedSlugs.length >= 4;
+
+  // Dynamically load suggestions from available models in catalog
+  useEffect(() => {
+    let ignore = false;
+    async function loadSuggestions() {
+      try {
+        const res = await fetch("/api/v1/models?limit=4");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length >= 2 && !ignore) {
+            const list: { name: string; slugs: string[] }[] = [];
+            list.push({
+              name: `${json.data[0].name} vs ${json.data[1].name}`,
+              slugs: [json.data[0].slug, json.data[1].slug],
+            });
+            if (json.data.length >= 4) {
+              list.push({
+                name: `${json.data[2].name} vs ${json.data[3].name}`,
+                slugs: [json.data[2].slug, json.data[3].slug],
+              });
+            }
+            setPresets(list);
+          }
+        }
+      } catch {
+        // Silently ignore catalog load issues
+      }
+    }
+    loadSuggestions();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // Handle outside click to close dropdown
   useEffect(() => {
@@ -265,23 +284,25 @@ export function ModelSelector({
         )}
       </div>
 
-      {/* Preset Quick Comparisons */}
-      <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
-        <span className="text-text-tertiary flex items-center gap-1">
-          <Sparkles className="h-3 w-3 text-accent" />
-          <span>Popular:</span>
-        </span>
-        {PRESET_COMPARISONS.map((preset) => (
-          <button
-            key={preset.name}
-            type="button"
-            onClick={() => onSelectPreset(preset.slugs)}
-            className="text-[11px] text-text-secondary hover:text-accent bg-surface-elevated hover:bg-surface border border-border px-2.5 py-1 rounded-md transition-colors"
-          >
-            {preset.name}
-          </button>
-        ))}
-      </div>
+      {/* Suggested Quick Comparisons */}
+      {presets.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
+          <span className="text-text-tertiary flex items-center gap-1">
+            <Sparkles className="h-3 w-3 text-accent" />
+            <span>Suggested:</span>
+          </span>
+          {presets.map((preset) => (
+            <button
+              key={preset.name}
+              type="button"
+              onClick={() => onSelectPreset(preset.slugs)}
+              className="text-[11px] text-text-secondary hover:text-accent bg-surface-elevated hover:bg-surface border border-border px-2.5 py-1 rounded-md transition-colors"
+            >
+              {preset.name}
+            </button>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

@@ -41,7 +41,8 @@ export function ComparisonView() {
       } else {
         params.delete("models");
       }
-      router.replace(`/compare?${params.toString()}`, { scroll: false });
+      const newUrl = params.toString() ? `/compare?${params.toString()}` : "/compare";
+      router.replace(newUrl, { scroll: false });
     },
     [router]
   );
