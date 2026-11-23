@@ -13,21 +13,21 @@
 
 ---
 
-## 🌟 Key Highlights & Capabilities
+## Key Highlights & Capabilities
 
-* **🔍 Comprehensive Model Catalog (`/models`)**: Search and filter across hundreds of proprietary and open-weight models. Filter by modalities (Text, Vision, Audio, Video), reasoning capability, open-weights status, minimum context length, maximum price per million tokens, and research lab.
-* **⚡ Side-by-Side Comparison Engine (`/compare`)**: Compare up to 4 models concurrently across context windows, maximum output limits, multimodal capabilities, reasoning flags, input/output/cached pricing, and benchmark scores.
-* **🏆 Standardized AI Benchmark Rankings (`/rankings`)**: Curated leaderboards across standard AI evaluations (MMLU, HumanEval, GSM8K, MATH, GPQA, etc.) categorised by Reasoning, Coding, Math, Knowledge, Multimodal, and Speed.
-* **🏢 Provider & Lab Directories (`/providers`, `/labs`)**: Deep profiles of frontier labs (OpenAI, Anthropic, Google DeepMind, Meta, Mistral, DeepSeek) and inference providers (AWS Bedrock, Azure AI, Cloudflare Workers AI, Together AI, Fireworks, Groq, DeepInfra, OpenRouter).
-* **🎯 Canonical Identity Resolution & Provenance Engine**: Robust identity resolution domain logic that decouples raw upstream supplier models (OpenRouter, Models.dev) from canonical models, utilizing normalized slugs, alias dictionaries, fuzzy candidate generation, confidence scoring, field-level provenance tracking, and conflict auditing.
-* **🔄 Resilient Ingestion Pipeline**: Fault-tolerant multi-source sync runners powered by PostgreSQL advisory locks (`pg_try_advisory_lock`), transactional batching, and schema normalization.
-* **🚀 Multi-Tier Resilient Caching**: Cache-Aside architecture featuring an L2 distributed Redis cache with automatic fallback to an L1 bounded in-memory LRU cache, single-flight promise deduplication to prevent cache stampedes, and namespace versioning for $O(1)$ group invalidations.
-* **🔐 Authentication & Security**: Seamless user identity and authentication powered by Clerk, supporting protected application workflows, sign-in/sign-up flows, and rate limiting with ETag validation.
-* **📊 Benchmarked Scalability**: Sub-millisecond parameterized PostgreSQL Common Table Expressions (CTEs) for multi-table catalog filtering, proven through K6 load testing suites.
+* **Comprehensive Model Catalog (`/models`)**: Search and filter across hundreds of proprietary and open-weight models. Filter by modalities (Text, Vision, Audio, Video), reasoning capability, open-weights status, minimum context length, maximum price per million tokens, and research lab.
+* **Side-by-Side Comparison Engine (`/compare`)**: Compare up to 4 models concurrently across context windows, maximum output limits, multimodal capabilities, reasoning flags, input/output/cached pricing, and benchmark scores.
+* **Standardized AI Benchmark Rankings (`/rankings`)**: Curated leaderboards across standard AI evaluations (MMLU, HumanEval, GSM8K, MATH, GPQA, etc.) categorised by Reasoning, Coding, Math, Knowledge, Multimodal, and Speed.
+* **Provider & Lab Directories (`/providers`, `/labs`)**: Deep profiles of frontier labs (OpenAI, Anthropic, Google DeepMind, Meta, Mistral, DeepSeek) and inference providers (AWS Bedrock, Azure AI, Cloudflare Workers AI, Together AI, Fireworks, Groq, DeepInfra, OpenRouter).
+* **Canonical Identity Resolution & Provenance Engine**: Robust identity resolution domain logic that decouples raw upstream supplier models (OpenRouter, Models.dev) from canonical models, utilizing normalized slugs, alias dictionaries, fuzzy candidate generation, confidence scoring, field-level provenance tracking, and conflict auditing.
+* **Resilient Ingestion Pipeline**: Fault-tolerant multi-source sync runners powered by PostgreSQL advisory locks (`pg_try_advisory_lock`), transactional batching, and schema normalization.
+* **Multi-Tier Resilient Caching**: Cache-Aside architecture featuring an L2 distributed Redis cache with automatic fallback to an L1 bounded in-memory LRU cache, single-flight promise deduplication to prevent cache stampedes, and namespace versioning for $O(1)$ group invalidations.
+* **Authentication & Security**: Seamless user identity and authentication powered by Clerk, supporting protected application workflows, sign-in/sign-up flows, and rate limiting with ETag validation.
+* **Benchmarked Scalability**: Sub-millisecond parameterized PostgreSQL Common Table Expressions (CTEs) for multi-table catalog filtering, proven through K6 load testing suites.
 
 ---
 
-## 🛠️ Technology Stack & Architecture
+## Technology Stack & Architecture
 
 ### Core Tech Stack
 * **Runtime**: Node.js 20+ / 24 LTS
@@ -46,7 +46,7 @@ The monorepo uses a two-folder structure coordinated via npm workspaces:
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 AI_details/
@@ -99,7 +99,7 @@ AI_details/
 
 ---
 
-## 🏛️ Database Architecture & Relational Model
+## Database Architecture & Relational Model
 
 The database strictly decouples upstream ingestion sources from research labs, canonical AI models, and inference hosting providers:
 
@@ -134,7 +134,7 @@ The database strictly decouples upstream ingestion sources from research labs, c
 
 ---
 
-## ⚡ Getting Started (Local Setup)
+## Getting Started (Local Setup)
 
 ### 1. Prerequisites
 * **Node.js**: `v20.x` or `v24.x LTS`
@@ -215,7 +215,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 📡 REST API Reference
+## REST API Reference
 
 The platform includes a high-performance Next.js API located under `/api/v1/`.
 
@@ -240,7 +240,7 @@ curl -X GET "http://localhost:3000/api/v1/models?modality=vision&isReasoning=tru
 
 ---
 
-## 📜 Complete CLI & npm Scripts Guide
+## Complete CLI & npm Scripts Guide
 
 All commands can be executed directly from the monorepo root:
 
@@ -304,30 +304,30 @@ All commands can be executed directly from the monorepo root:
 
 ---
 
-## 🗺️ Project Implementation Roadmap
+## Project Implementation Roadmap
 
-* [x] **Phase 1: Architecture & Data Modeling**
+* [x] **Architecture & Data Modeling**
   * Decoupled relational PostgreSQL schema (Prisma ORM 7).
   * Monorepo workspace setup (`frontend`, `backend`).
-* [x] **Phase 2: Database Layer & Tooling Setup**
+* [x] **Database Layer & Tooling Setup**
   * PostgreSQL connection pooling with `@prisma/adapter-pg`.
   * Automated migration scripts, database smoke tests, and baseline seeding.
-* [x] **Phase 3A-3C: Ingestion, Normalization & Identity Resolution**
+* [x] **Ingestion, Normalization & Identity Resolution**
   * Upstream OpenRouter & Models.dev integration clients.
   * Canonical identity resolution engine with fuzzy candidate ranking.
   * Field-level provenance tracking and conflict detection engine.
-* [x] **Phase 3D: Multi-Source Shared Ingestion Engine**
+* [x] **Multi-Source Shared Ingestion Engine**
   * Ingestion coordinator with PostgreSQL advisory locks and batching.
   * End-to-end sync runners (`sync:all`, `sync:openrouter`, `sync:modelsdev`).
-* [x] **Phase 4: Backend Services & REST API v1**
+* [x] **Backend Services & REST API v1**
   * High-performance parameterized SQL CTE query services for model discovery.
   * Side-by-side comparison, benchmark rankings, provider, and lab services.
   * REST API v1 endpoints with Zod validation, ETags, and rate limiting.
-* [x] **Phase 5: Resilient Caching & Performance Optimization**
+* [x] **Resilient Caching & Performance Optimization**
   * Multi-tier Cache-Aside engine (L2 Redis + L1 in-memory LRU).
   * Single-flight promise deduplication to prevent cache stampedes.
   * K6 load testing suite validating high-throughput sub-millisecond execution.
-* [x] **Phase 6: Frontend Experience & UI Design System**
+* [x] **Frontend Experience & UI Design System**
   * Modern Next.js 16 App Router UI styled with Tailwind CSS v4.
   * Interactive Model Catalog (`/models`) with real-time filters and search.
   * Model Detail page (`/models/[slug]`) with endpoint list and specs.
@@ -335,13 +335,13 @@ All commands can be executed directly from the monorepo root:
   * Benchmark Rankings Leaderboard (`/rankings`).
   * Provider and Lab Directories (`/providers`, `/labs`).
   * Responsive landing page with ecosystem overview and live stats.
-* [x] **Phase 7: Authentication & Access Control**
+* [x] **Authentication & Access Control**
   * Integrated Clerk Authentication with custom sign-in and sign-up flows.
   * User state synchronization and protected routes.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these steps:
 1. Fork the repository.
@@ -353,6 +353,6 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
