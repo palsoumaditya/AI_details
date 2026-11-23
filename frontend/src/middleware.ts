@@ -1,28 +1,43 @@
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIdentifier } from "./lib/api/rate-limiter";
 
 /**
- * OneAtlas Edge Security & Resilience Middleware
+ * OneAtlas Edge Security, Resilience & Authentication Middleware
  *
  * Responsibilities:
- * 1. Distributed rate limiting per client IP on /api/* routes.
- * 2. Request body size bounding (rejects payloads > 1MB with HTTP 413).
- * 3. Security header injection.
- * 4. Request correlation ID injection (x-request-id).
+ * 1. Clerk Authentication Route Protection: Protects non-public routes (/models, /compare, /rankings, /providers, /labs, etc.).
+ * 2. Distributed rate limiting per client IP on /api/* routes.
+ * 3. Request body size bounding (rejects payloads > 1MB with HTTP 413).
+ * 4. Security header injection.
+ * 5. Request correlation ID injection (x-request-id).
  */
 
 const MAX_BODY_BYTES = 1024 * 1024; // 1MB payload ceiling
 
-export async function middleware(request: NextRequest) {
+// Define public routes accessible without authentication
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/v1/health(.*)",
+]);
+
+export default clerkMiddleware(async (auth, request: NextRequest) => {
   const { pathname } = request.nextUrl;
 
-  // Only apply API defenses to /api/* routes
+  // 1. Enforce Authentication for non-public routes (Only authenticated users have access)
+  if (!isPublicRoute(request)) {
+    await auth.protect();
+  }
+
+  // 2. Only apply API defenses to /api/* routes
   if (pathname.startsWith("/api/")) {
     const requestId =
       request.headers.get("x-request-id") ||
       `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // 1. Guard against oversized payload attacks
+    // Guard against oversized payload attacks
     const contentLength = request.headers.get("content-length");
     if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
       return NextResponse.json(
@@ -41,7 +56,7 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // 2. Rate limiting check (Configurable for load tests & production)
+    // Rate limiting check (Configurable for load tests & production)
     const isLoadTestBypass =
       process.env.DISABLE_RATE_LIMIT === "true" ||
       request.headers.get("x-load-test-bypass") === "benchmark-secret";
@@ -94,10 +109,13 @@ export async function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: [
-    "/api/:path*",
+    // Skip Next.js internals and all static files, unless found in search params
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Always run for API routes
+    "/(api|trpc)(.*)",
   ],
 };
