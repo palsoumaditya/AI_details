@@ -12,7 +12,7 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("===============================================================");
-  console.log("   ONEATLAS ENDPOINT RECONCILIATION AUDIT (Phase 3C.1)");
+  console.log("   AI DETAILS ENDPOINT RECONCILIATION AUDIT (Phase 3C.1)");
   console.log("===============================================================\n");
 
   const totalEndpoints = await prisma.modelProviderEndpoint.count();

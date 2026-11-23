@@ -3,7 +3,7 @@ import { prisma } from "../src/database/index";
 
 async function main() {
   console.log("=================================================");
-  console.log("🔍 ONEATLAS LIVE DATABASE AUDIT FOR PHASE 4C");
+  console.log("🔍 AI DETAILS LIVE DATABASE AUDIT FOR PHASE 4C");
   console.log("=================================================\n");
 
   // 1. Canonical model count

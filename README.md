@@ -1,4 +1,4 @@
-# AI Details (OneAtlas) — AI Model Discovery & Intelligence Platform
+# AI Details — AI Model Discovery & Intelligence Platform
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue?style=flat&logo=react)](https://react.dev/)
@@ -9,7 +9,7 @@
 [![Redis](https://img.shields.io/badge/Redis-6+-DC382D?style=flat&logo=redis)](https://redis.io/)
 [![Clerk](https://img.shields.io/badge/Clerk-Auth-6C47FF?style=flat&logo=clerk)](https://clerk.com/)
 
-**AI Details (OneAtlas)** is an open-source, developer-centric intelligence platform engineered to discover, evaluate, compare, and benchmark 640+ frontier and open-weights foundation AI models across 320+ inference providers and research labs with real-time pricing, context limits, and benchmark analytics.
+**AI Details** is an open-source, developer-centric intelligence platform engineered to discover, evaluate, compare, and benchmark 640+ frontier and open-weights foundation AI models across 320+ inference providers and research labs with real-time pricing, context limits, and benchmark analytics.
 
 ---
 
@@ -144,8 +144,8 @@ The database strictly decouples upstream ingestion sources from research labs, c
 
 ### 2. Clone and Install Dependencies
 ```bash
-git clone https://github.com/your-username/oneatlas.git
-cd oneatlas/AI_details
+git clone https://github.com/your-username/ai-details.git
+cd ai-details/AI_details
 
 # Install all workspace dependencies and generate Prisma Client
 npm install
@@ -160,7 +160,7 @@ cp .env.example .env
 Configure your credentials inside `.env`:
 ```env
 # PostgreSQL connection string
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/aidetails?schema=public"
 
 # Connection pool sizing
 DB_POOL_MAX=10

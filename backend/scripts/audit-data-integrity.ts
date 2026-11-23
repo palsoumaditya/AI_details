@@ -12,7 +12,7 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("===============================================================");
-  console.log("   ONEATLAS DATA INTEGRITY AUDIT REPORT (Phase 3C.1)");
+  console.log("   AI DETAILS DATA INTEGRITY AUDIT REPORT (Phase 3C.1)");
   console.log("===============================================================\n");
 
   // 1. Models & Mappings Count

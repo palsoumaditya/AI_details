@@ -22,7 +22,7 @@ import type {
 async function runTests() {
   console.log(`
 🧪 =========================================================
-   ONEATLAS SHARED INGESTION COORDINATOR TEST SUITE (3D)
+   AI DETAILS SHARED INGESTION COORDINATOR TEST SUITE (3D)
 =========================================================
 `);
 

@@ -10,7 +10,7 @@ import { ZodError } from "zod";
 
 /**
  * =========================================================================
- * ONEATLAS PHASE 4D.1 — PROVIDER DIRECTORY & ENDPOINT MATRIX TEST SUITE
+ * AI DETAILS PHASE 4D.1 — PROVIDER DIRECTORY & ENDPOINT MATRIX TEST SUITE
  * =========================================================================
  */
 
@@ -204,7 +204,7 @@ async function cleanupFixtures(ctx: ProviderTestContext): Promise<void> {
 
 async function runTests(): Promise<void> {
   console.log("🧪 =========================================================");
-  console.log("   ONEATLAS PROVIDER DIRECTORY & MATRIX TEST SUITE (4D.1)");
+  console.log("   AI DETAILS PROVIDER DIRECTORY & MATRIX TEST SUITE (4D.1)");
   console.log("=========================================================\n");
 
   // Record baseline counts before provisioning

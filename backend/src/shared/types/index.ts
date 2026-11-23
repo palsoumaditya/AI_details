@@ -1,5 +1,5 @@
 /**
- * Shared public types for the OneAtlas platform.
+ * Shared public types for the AI Details platform.
  * These types are safe for use in both frontend and backend.
  */
 

@@ -3,8 +3,8 @@ import { LockConflictError } from "./error-handler";
 import type { IngestionLogger } from "../contracts/types";
 
 /**
- * Stable 64-bit BigInt identifier for OneAtlas global catalog synchronization.
- * Hash of "oneatlas_global_catalog_ingestion_lock"
+ * Stable 64-bit BigInt identifier for AI Details global catalog synchronization.
+ * Hash of "aidetails_global_catalog_ingestion_lock"
  */
 const GLOBAL_INGESTION_LOCK_ID = "4294967297"; // 64-bit advisory lock key
 

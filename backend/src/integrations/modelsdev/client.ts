@@ -117,7 +117,7 @@ export class ModelsDevClient {
         const response = await fetch(url, {
           method: "GET",
           headers: {
-            "User-Agent": "OneAtlas-Ingestion-Engine/1.0 (+https://oneatlas.dev)",
+            "User-Agent": "AIDetails-Ingestion-Engine/1.0 (+https://aidetails.dev)",
             Accept: "application/json",
           },
           signal: AbortSignal.timeout(this.timeoutMs),

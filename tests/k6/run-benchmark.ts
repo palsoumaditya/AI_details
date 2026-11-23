@@ -77,7 +77,7 @@ async function runAutocannon(scenario: Scenario): Promise<any> {
         duration: DURATION,
         headers: {
           accept: "application/json",
-          "user-agent": "OneAtlas-LoadTester/1.0",
+          "user-agent": "AI DETAILS-LoadTester/1.0",
           "x-load-test-bypass": "benchmark-secret",
         },
       },
@@ -95,7 +95,7 @@ async function runAutocannon(scenario: Scenario): Promise<any> {
 
 async function main() {
   console.log(`===============================================================`);
-  console.log(`   ONEATLAS PRODUCTION READINESS & CAPACITY LOAD BENCHMARK`);
+  console.log(`   AI DETAILS PRODUCTION READINESS & CAPACITY LOAD BENCHMARK`);
   console.log(`===============================================================`);
 
   const frontendDir = path.resolve(__dirname, "../../frontend");

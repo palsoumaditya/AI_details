@@ -1,4 +1,4 @@
-// OneAtlas Database Schema — Production-Grade Data Model
+// AI Details Database Schema — Production-Grade Data Model
 // Prisma ORM 7 Configuration
 
 generator client {

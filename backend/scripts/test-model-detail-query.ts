@@ -9,7 +9,7 @@ import { ZodError } from "zod";
 
 /**
  * =========================================================================
- * ONEATLAS PHASE 4C — MODEL DETAIL, PROVIDER MATRIX & PRICING HISTORY TEST SUITE
+ * AI DETAILS PHASE 4C — MODEL DETAIL, PROVIDER MATRIX & PRICING HISTORY TEST SUITE
  * =========================================================================
  */
 
@@ -354,7 +354,7 @@ async function cleanupFixtures(ctx: TestFixtureContext): Promise<void> {
 
 async function runTests(): Promise<void> {
   console.log("🧪 =========================================================");
-  console.log("   ONEATLAS MODEL DETAIL & PRICING HISTORY TEST SUITE (4C)");
+  console.log("   AI DETAILS MODEL DETAIL & PRICING HISTORY TEST SUITE (4C)");
   console.log("=========================================================\n");
 
   let fixtures: TestFixtureContext | null = null;

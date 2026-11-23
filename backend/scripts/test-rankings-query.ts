@@ -341,7 +341,7 @@ function createMockPrisma() {
 
 async function runTestSuite() {
   console.log("================================================================================");
-  console.log("ONEATLAS TASK 6: RANKINGS & BENCHMARK LEADERBOARD COMPREHENSIVE TEST SUITE");
+  console.log("AI DETAILS TASK 6: RANKINGS & BENCHMARK LEADERBOARD COMPREHENSIVE TEST SUITE");
   console.log("================================================================================\n");
 
   // --------------------------------------------------------------------------

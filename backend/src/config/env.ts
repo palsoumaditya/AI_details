@@ -8,7 +8,7 @@ dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 /**
- * Environment variable schema validation for OneAtlas backend
+ * Environment variable schema validation for AI Details backend
  */
 const envSchema = z.object({
   NODE_ENV: z
@@ -23,7 +23,7 @@ const envSchema = z.object({
         message: "DATABASE_URL must use the postgresql:// or postgres:// protocol",
       }
     )
-    .default("postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public"),
+    .default("postgresql://postgres:postgres@localhost:5432/aidetails?schema=public"),
   DIRECT_URL: z
     .string()
     .url("DIRECT_URL must be a valid URL")

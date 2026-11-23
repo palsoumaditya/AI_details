@@ -16,7 +16,7 @@ async function main() {
   const prisma = new PrismaClient({ adapter });
 
   console.log("=========================================================");
-  console.log("   ONEATLAS DATABASE & IDENTITY INSPECTION REPORT");
+  console.log("   AI DETAILS DATABASE & IDENTITY INSPECTION REPORT");
   console.log("=========================================================\n");
 
   try {

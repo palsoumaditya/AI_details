@@ -14,7 +14,7 @@ async function main() {
   const isApply = process.argv.includes("--apply");
 
   console.log("===============================================================");
-  console.log("   ONEATLAS SMOKE TEST ARTIFACTS AUDIT & CLEANUP (Section 14)");
+  console.log("   AI DETAILS SMOKE TEST ARTIFACTS AUDIT & CLEANUP (Section 14)");
   console.log(`   Mode: ${isApply ? "APPLY (DELETION ENABLED)" : "PREVIEW / DRY-RUN"}`);
   console.log("===============================================================\n");
 

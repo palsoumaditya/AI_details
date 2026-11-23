@@ -17,8 +17,8 @@ export async function generateMetadata({
     .join(" ");
 
   return {
-    title: `${formattedTitle} Leaderboard | OneAtlas.dev`,
-    description: `Comprehensive AI model rankings and benchmark evaluations for ${formattedTitle} on OneAtlas.dev.`,
+    title: `${formattedTitle} Leaderboard | AI Details`,
+    description: `Comprehensive AI model rankings and benchmark evaluations for ${formattedTitle} on AI Details.`,
   };
 }
 

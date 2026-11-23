@@ -12,7 +12,7 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("===============================================================");
-  console.log("   ONEATLAS FIELD PROVENANCE AUDIT (Phase 3C.1)");
+  console.log("   AI DETAILS FIELD PROVENANCE AUDIT (Phase 3C.1)");
   console.log("===============================================================");
 
   const totalProvenance = await prisma.fieldProvenance.count();

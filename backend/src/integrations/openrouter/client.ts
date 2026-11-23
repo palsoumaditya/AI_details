@@ -53,7 +53,7 @@ export class OpenRouterClient {
 
     const headers: Record<string, string> = {
       Accept: "application/json",
-      "User-Agent": "OneAtlas/1.0 (+https://oneatlas.dev)",
+      "User-Agent": "AIDetails/1.0 (+https://aidetails.dev)",
     };
 
     const token = options.useManagementKey

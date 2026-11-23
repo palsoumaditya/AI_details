@@ -100,7 +100,7 @@ export class CacheService {
   public buildKey(namespace: string, key: string): string {
     const version = this.namespaceVersions.get(namespace) ?? 1;
     const sanitizedKey = key.replace(/\s+/g, "_");
-    return `oneatlas:v1:${namespace}:v${version}:${sanitizedKey}`;
+    return `aidetails:v1:${namespace}:v${version}:${sanitizedKey}`;
   }
 
   /**
@@ -249,7 +249,7 @@ export class CacheService {
     const currentVersion = this.namespaceVersions.get(namespace) ?? 1;
     this.namespaceVersions.set(namespace, currentVersion + 1);
 
-    const prefix = `oneatlas:v1:${namespace}:`;
+    const prefix = `aidetails:v1:${namespace}:`;
     for (const k of this.memoryCache.keys()) {
       if (k.startsWith(prefix)) {
         this.memoryCache.delete(k);
@@ -258,7 +258,7 @@ export class CacheService {
 
     if (this.isRedisReady && this.redisClient) {
       try {
-        await this.redisClient.incr(`oneatlas:v1:version:${namespace}`);
+        await this.redisClient.incr(`aidetails:v1:version:${namespace}`);
       } catch {
         this.errors++;
       }

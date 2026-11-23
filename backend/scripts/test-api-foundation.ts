@@ -17,7 +17,7 @@ import { prisma } from "../src/database/index";
 
 /**
  * =========================================================================
- * ONEATLAS PHASE 4A — API FOUNDATION, CONTRACTS & SERIALIZATION TEST SUITE
+ * AI DETAILS PHASE 4A — API FOUNDATION, CONTRACTS & SERIALIZATION TEST SUITE
  * =========================================================================
  */
 
@@ -63,7 +63,7 @@ function testSerializeDate(value: unknown): string | null {
 
 async function runApiTests(): Promise<void> {
   console.log("\n🧪 =========================================================");
-  console.log("   ONEATLAS API FOUNDATION, CONTRACTS & HEALTH TEST SUITE");
+  console.log("   AI DETAILS API FOUNDATION, CONTRACTS & HEALTH TEST SUITE");
   console.log("=========================================================\n");
 
   // -------------------------------------------------------------

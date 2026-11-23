@@ -9,7 +9,7 @@ import type { IngestionStage, IngestionExecutionMode } from "../src/ingestion/co
 
 function printHelp() {
   console.log(`
-OneAtlas.dev — Unified Shared Ingestion Coordinator CLI
+AI Details — Unified Shared Ingestion Coordinator CLI
 ======================================================
 Usage:
   npm run sync:all -- [options]
@@ -131,7 +131,7 @@ async function main() {
 
     if (!isJson) {
       console.log("===============================================================");
-      console.log("   ONEATLAS SHARED DATA INGESTION COORDINATOR (Phase 3D)");
+      console.log("   AI DETAILS SHARED DATA INGESTION COORDINATOR (Phase 3D)");
       console.log(`   Mode:     ${mode}`);
       console.log(`   Scope:    ${isFull ? "FULL COMPLETE CATALOG" : `Bounded limit = ${limit}`}`);
       console.log(`   Sources:  ${requestedSources.join(", ")}`);

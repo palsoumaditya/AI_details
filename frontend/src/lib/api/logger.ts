@@ -21,7 +21,7 @@ export function logApiRequest(ctx: ApiLogContext): void {
   const logEntry = {
     level: ctx.statusCode >= 500 ? "error" : ctx.statusCode >= 400 ? "warn" : "info",
     timestamp,
-    service: "oneatlas-api",
+    service: "ai-details-api",
     requestId: ctx.requestId,
     http: {
       method: ctx.method,
@@ -60,7 +60,7 @@ export function logApiError(ctx: ApiErrorLogContext): void {
   const logEntry = {
     level: ctx.statusCode >= 500 ? "error" : "warn",
     timestamp,
-    service: "oneatlas-api",
+    service: "ai-details-api",
     requestId: ctx.requestId,
     route: ctx.route,
     statusCode: ctx.statusCode,

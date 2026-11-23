@@ -4,7 +4,7 @@ import { PrismaClient } from "@oneatlas/database";
 import { ModelsDevSyncService } from "../src/integrations/modelsdev";
 
 /**
- * OneAtlas Models.dev Synchronization CLI
+ * AI DETAILS Models.dev Synchronization CLI
  * Usage:
  *   npx tsx scripts/sync-modelsdev.ts [options]
  *
@@ -21,7 +21,7 @@ import { ModelsDevSyncService } from "../src/integrations/modelsdev";
 function printHelp() {
   console.log(`
 =========================================================
-   ONEATLAS MODELs.DEV SYNCHRONIZATION CLI
+   AI DETAILS MODELs.DEV SYNCHRONIZATION CLI
 =========================================================
 
 Usage:
@@ -75,7 +75,7 @@ async function main() {
 
   console.log(`
 =========================================================
-   ONEATLAS MODELs.DEV SYNCHRONIZATION CLI
+   AI DETAILS MODELs.DEV SYNCHRONIZATION CLI
 =========================================================
 • Mode:               ${isDryRun ? "DRY RUN (No database writes)" : "APPLY (Persisting to PostgreSQL)"}
 • Model Limit:        ${limit ?? "All"}

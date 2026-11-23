@@ -34,18 +34,18 @@ export async function generateMetadata({
     const result = await labDirectoryQueryService.getLabBySlug(slug);
     if (!result) {
       return {
-        title: "AI Lab Not Found | OneAtlas.dev",
+        title: "AI Lab Not Found | AI Details",
       };
     }
     return {
-      title: `${result.lab.name} — AI Research Portfolio & Models | OneAtlas.dev`,
+      title: `${result.lab.name} — AI Research Portfolio & Models | AI Details`,
       description:
         result.lab.description ||
         `Explore foundation models, research contributions, and open-weight architectures from ${result.lab.name}.`,
     };
   } catch {
     return {
-      title: `${slug} — AI Research Lab | OneAtlas.dev`,
+      title: `${slug} — AI Research Lab | AI Details`,
     };
   }
 }

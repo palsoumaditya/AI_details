@@ -23,7 +23,7 @@ import { ProviderService } from "../src/integrations/openrouter/provider.service
 
 async function runTests() {
   console.log("🧪 =========================================================");
-  console.log("   ONEATLAS OPENROUTER INTEGRATION UNIT & PERSISTENCE TESTS");
+  console.log("   AI DETAILS OPENROUTER INTEGRATION UNIT & PERSISTENCE TESTS");
   console.log("=========================================================\n");
 
   let testsPassed = 0;
@@ -153,7 +153,7 @@ async function runTests() {
   const connectionString =
     process.env.DIRECT_URL ||
     process.env.DATABASE_URL ||
-    "postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public";
+    "postgresql://postgres:postgres@localhost:5432/AI DETAILS?schema=public";
 
   const adapter = new PrismaPg({ connectionString });
   const prisma = new PrismaClient({ adapter });

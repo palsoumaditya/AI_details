@@ -1,5 +1,5 @@
 /**
- * Shared Ingestion Contracts & Types for OneAtlas.dev
+ * Shared Ingestion Contracts & Types for AI Details
  */
 
 export type IngestionExecutionMode = "DRY_RUN" | "APPLY";

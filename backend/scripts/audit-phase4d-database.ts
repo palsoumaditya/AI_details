@@ -3,7 +3,7 @@ import { prisma } from "../src/database/index";
 
 async function main() {
   console.log("=================================================");
-  console.log("🔍 ONEATLAS LIVE DATABASE AUDIT FOR PHASE 4D");
+  console.log("🔍 AI DETAILS LIVE DATABASE AUDIT FOR PHASE 4D");
   console.log("=================================================\n");
 
   // Providers

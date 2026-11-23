@@ -81,7 +81,7 @@ function parseReleaseDate(dateStr?: string | null): Date | null {
 }
 
 /**
- * Normalizes Models.dev pricing costs into OneAtlas schema.
+ * Normalizes Models.dev pricing costs into AI Details schema.
  * CRITICAL RULE: Models.dev cost values are ALREADY in USD per 1M tokens.
  * Do NOT multiply by 1,000,000!
  */

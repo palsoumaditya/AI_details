@@ -35,7 +35,7 @@ async function main() {
   }
 
   console.log("=========================================================");
-  console.log("   ONEATLAS OPENROUTER SYNCHRONIZATION CLI");
+  console.log("   AI DETAILS OPENROUTER SYNCHRONIZATION CLI");
   console.log("=========================================================");
   console.log(`• Mode:               ${isDryRun ? "DRY RUN (No database writes)" : "APPLY (Persisting to PostgreSQL)"}`);
   console.log(`• Model Limit:        ${limit ? limit : "Full Catalog (All Models)"}`);
@@ -46,7 +46,7 @@ async function main() {
   const connectionString =
     process.env.DIRECT_URL ||
     process.env.DATABASE_URL ||
-    "postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public";
+    "postgresql://postgres:postgres@localhost:5432/AI DETAILS?schema=public";
 
   const adapter = new PrismaPg({ connectionString });
   const prisma = new PrismaClient({ adapter });

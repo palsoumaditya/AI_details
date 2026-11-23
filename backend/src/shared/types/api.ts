@@ -1,5 +1,5 @@
 /**
- * Standard API Response and DTO Contracts for OneAtlas.dev (Phase 4A & 4B)
+ * Standard API Response and DTO Contracts for AI Details (Phase 4A & 4B)
  *
  * Strict separation between external response representations and internal database models.
  */

@@ -233,7 +233,7 @@ class MockModelDetailQueryService implements IModelDetailQueryService {
 
 async function runTestSuite() {
   console.log("\n=======================================================");
-  console.log(" ONEATLAS TASK 5 — MODEL COMPARISON ENGINE TEST SUITE");
+  console.log(" AI DETAILS TASK 5 — MODEL COMPARISON ENGINE TEST SUITE");
   console.log("=======================================================\n");
 
   // SECTION 1: Schema Validation

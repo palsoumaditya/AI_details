@@ -26,7 +26,7 @@ import { EndpointService as OpenRouterEndpointService } from "../src/integration
 async function runTests() {
   console.log(`
 🧪 =========================================================
-   ONEATLAS IDENTITY RESOLUTION & RECONCILIATION TEST SUITE
+   AI DETAILS IDENTITY RESOLUTION & RECONCILIATION TEST SUITE
 =========================================================
 `);
 

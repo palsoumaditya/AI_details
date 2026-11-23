@@ -73,7 +73,7 @@ async function runScenario(scenario: BenchmarkScenario): Promise<void> {
         duration: DURATION,
         headers: {
           accept: "application/json",
-          "user-agent": "OneAtlas-Benchmark-Runner/1.0",
+          "user-agent": "AI DETAILS-Benchmark-Runner/1.0",
         },
       },
       (err, result) => {
@@ -104,7 +104,7 @@ async function runScenario(scenario: BenchmarkScenario): Promise<void> {
 
 async function main() {
   console.log(`\n===============================================================`);
-  console.log(`   ONEATLAS PRODUCTION HIGH-CONCURRENCY LOAD BENCHMARK`);
+  console.log(`   AI DETAILS PRODUCTION HIGH-CONCURRENCY LOAD BENCHMARK`);
   console.log(`===============================================================`);
   console.log(`Testing target: ${BASE_URL}`);
 

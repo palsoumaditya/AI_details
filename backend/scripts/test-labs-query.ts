@@ -10,7 +10,7 @@ import { ZodError } from "zod";
 
 /**
  * =========================================================================
- * ONEATLAS PHASE 4D.1 — AI LAB DIRECTORY & LINEAGE TEST SUITE
+ * AI DETAILS PHASE 4D.1 — AI LAB DIRECTORY & LINEAGE TEST SUITE
  * =========================================================================
  */
 
@@ -182,7 +182,7 @@ async function cleanupFixtures(ctx: LabTestContext): Promise<void> {
 
 async function runTests(): Promise<void> {
   console.log("🧪 =========================================================");
-  console.log("   ONEATLAS AI LAB DIRECTORY & LINEAGE TEST SUITE (4D.1)");
+  console.log("   AI DETAILS AI LAB DIRECTORY & LINEAGE TEST SUITE (4D.1)");
   console.log("=========================================================\n");
 
   // Record baseline counts before provisioning

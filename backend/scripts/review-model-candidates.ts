@@ -16,7 +16,7 @@ import { ReviewService } from "../src/domain/identity-resolution/review.service"
 function printHelp() {
   console.log(`
 =========================================================
-   ONEATLAS MODEL RESOLUTION CANDIDATE REVIEW CLI
+   AI DETAILS MODEL RESOLUTION CANDIDATE REVIEW CLI
 =========================================================
 
 Commands:

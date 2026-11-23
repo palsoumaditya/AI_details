@@ -39,20 +39,20 @@ export async function generateMetadata({
     const model = await modelDetailQueryService.getModelDetails(slug);
     if (!model) {
       return {
-        title: "Model Not Found | OneAtlas.dev",
+        title: "Model Not Found | AI Details",
       };
     }
 
     const labName = model.labs[0]?.name || "AI Research";
     return {
-      title: `${model.name} (${labName}) — AI Model Specs, Pricing & Benchmarks | OneAtlas.dev`,
+      title: `${model.name} (${labName}) — AI Model Specs, Pricing & Benchmarks | AI Details`,
       description:
         model.description ||
         `Explore technical specifications, context window limits, inference pricing, and provider endpoints for ${model.name}.`,
     };
   } catch {
     return {
-      title: `${slug} — Model Intelligence | OneAtlas.dev`,
+      title: `${slug} — Model Intelligence | AI Details`,
     };
   }
 }

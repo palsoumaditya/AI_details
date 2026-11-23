@@ -1,5 +1,5 @@
 /**
- * Data presentation formatters for OneAtlas.dev
+ * Data presentation formatters for AI Details
  */
 
 /**

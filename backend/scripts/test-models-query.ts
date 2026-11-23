@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 
 /**
  * =========================================================================
- * ONEATLAS PHASE 4B — MODEL CATALOG QUERY, SEARCH & FILTERING TEST SUITE
+ * AI DETAILS PHASE 4B — MODEL CATALOG QUERY, SEARCH & FILTERING TEST SUITE
  * =========================================================================
  */
 
@@ -319,7 +319,7 @@ async function cleanupFixtures(ctx: TestFixtureContext): Promise<void> {
 
 async function runTests(): Promise<void> {
   console.log("🧪 =========================================================");
-  console.log("   ONEATLAS MODEL CATALOG QUERY & FILTERING TEST SUITE (4B)");
+  console.log("   AI DETAILS MODEL CATALOG QUERY & FILTERING TEST SUITE (4B)");
   console.log("=========================================================\n");
 
   let fixtures: TestFixtureContext | null = null;

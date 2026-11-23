@@ -3,7 +3,7 @@ import { prisma } from "../src/database/index";
 
 async function runExplainPlans() {
   console.log("=========================================================");
-  console.log("   ONEATLAS EXPLAIN (ANALYZE, BUFFERS) VERIFICATION");
+  console.log("   AI DETAILS EXPLAIN (ANALYZE, BUFFERS) VERIFICATION");
   console.log("=========================================================\n");
 
   // Fetch OpenRouter provider ID and Google Lab ID for realistic parameter bindings

@@ -3,7 +3,7 @@ import { check, sleep } from "k6";
 import { Rate, Trend, Counter } from "k6/metrics";
 
 /**
- * OneAtlas Production-Grade k6 Load Testing Suite
+ * AI DETAILS Production-Grade k6 Load Testing Suite
  *
  * Scenarios supported:
  * 1. smoke   — 1-2 VUs, verify endpoint availability
@@ -151,7 +151,7 @@ export default function () {
 
   const params = {
     headers: {
-      "User-Agent": "OneAtlas-k6-LoadTest/1.0",
+      "User-Agent": "AI DETAILS-k6-LoadTest/1.0",
       Accept: "application/json",
       "x-load-test-bypass": "benchmark-secret",
     },

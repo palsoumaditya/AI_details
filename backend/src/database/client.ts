@@ -16,7 +16,7 @@ dotenv.config({ path: path.resolve(process.cwd(), "frontend/.env.local") });
 dotenv.config({ path: path.resolve(process.cwd(), "AI_details/frontend/.env.local") });
 
 /**
- * OneAtlas Production-Grade Database Connection Manager
+ * AI Details Production-Grade Database Connection Manager
  *
  * Requirements satisfied:
  * 1. DATABASE_URL is strictly prioritized for normal application runtime (pooled endpoint).
@@ -64,7 +64,7 @@ export function resolveConnectionUrl(useDirectUrl = false): string {
   if (!process.env.DATABASE_URL && !process.env.DIRECT_URL) {
     console.warn(
       "[Database Warning] Neither DATABASE_URL nor DIRECT_URL was found in process.env. " +
-      "Falling back to default local connection 'postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public'. " +
+      "Falling back to default local connection 'postgresql://postgres:postgres@localhost:5432/aidetails?schema=public'. " +
       "If you are using Neon or a remote database, verify your .env or .env.local file and restart the dev server."
     );
   }
@@ -73,7 +73,7 @@ export function resolveConnectionUrl(useDirectUrl = false): string {
   const runtimeUrl =
     process.env.DATABASE_URL ||
     process.env.DIRECT_URL ||
-    "postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public";
+    "postgresql://postgres:postgres@localhost:5432/aidetails?schema=public";
 
   return runtimeUrl;
 }

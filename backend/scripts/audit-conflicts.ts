@@ -12,7 +12,7 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("===============================================================");
-  console.log("   ONEATLAS DATA CONFLICTS AUDIT (Phase 3C.1)");
+  console.log("   AI DETAILS DATA CONFLICTS AUDIT (Phase 3C.1)");
   console.log("===============================================================");
 
   const totalConflicts = await prisma.dataConflict.count();

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIdentifier } from "./lib/api/rate-limiter";
 
 /**
- * OneAtlas Edge Security, Resilience & Authentication Middleware
+ * AI Details Edge Security, Resilience & Authentication Middleware
  *
  * Responsibilities:
  * 1. Clerk Authentication Route Protection: Protects non-public routes (/models, /compare, /rankings, /providers, /labs, etc.).

@@ -23,7 +23,7 @@ import type { ExternalModelInput, ResolutionResult, FieldConflict } from "../src
 function printHelp() {
   console.log(`
 =========================================================
-   ONEATLAS MODEL IDENTITY & DUPLICATE AUDIT CLI
+   AI DETAILS MODEL IDENTITY & DUPLICATE AUDIT CLI
 =========================================================
 Options:
   --dry-run             Analyze without persisting candidate records.
@@ -68,7 +68,7 @@ async function main() {
 
   console.log(`
 =========================================================
-   ONEATLAS MODEL IDENTITY RESOLUTION & AUDIT
+   AI DETAILS MODEL IDENTITY RESOLUTION & AUDIT
 =========================================================
 • Mode:               ${isDryRun ? "DRY RUN (Analysis Only)" : "PERSIST CANDIDATES"}
 • Target Source:      ${sourceSlug || "All Active Sources"}

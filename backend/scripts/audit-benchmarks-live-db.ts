@@ -3,7 +3,7 @@ import { prisma } from "../src/database/index";
 
 async function auditLiveDatabase() {
   console.log("================================================================================");
-  console.log("ONEATLAS TASK 6.1: NEON POSTGRESQL BENCHMARK COVERAGE AUDIT");
+  console.log("AI DETAILS TASK 6.1: NEON POSTGRESQL BENCHMARK COVERAGE AUDIT");
   console.log("================================================================================\n");
 
   const benchmarks = await prisma.benchmark.findMany({

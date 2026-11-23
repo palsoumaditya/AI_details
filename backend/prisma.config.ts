@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const rawUrl = process.env.DIRECT_URL || process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public";
+const rawUrl = process.env.DIRECT_URL || process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/aidetails?schema=public";
 // Neon pooler URLs (-pooler) do not support PostgreSQL session-level advisory locks needed for migrations.
 // Direct endpoint safely strips -pooler for CLI migration operations while preserving runtime pooling in DATABASE_URL.
 const databaseUrl = rawUrl.replace("-pooler.", ".");

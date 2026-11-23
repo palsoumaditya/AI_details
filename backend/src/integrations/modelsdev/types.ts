@@ -1,7 +1,7 @@
 import { Prisma } from "@oneatlas/database";
 
 /**
- * Raw Models.dev API contracts and normalized OneAtlas domain types.
+ * Raw Models.dev API contracts and normalized AI Details domain types.
  */
 
 /**
@@ -105,7 +105,7 @@ export interface ModelsDevRawCatalogResponse {
 }
 
 /**
- * Normalized OneAtlas domain types.
+ * Normalized AI Details domain types.
  */
 
 export interface NormalizedPricing {

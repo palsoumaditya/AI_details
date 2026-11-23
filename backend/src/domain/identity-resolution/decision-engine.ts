@@ -18,7 +18,7 @@ export interface DecisionInput {
 
 export class DecisionEngine {
   /**
-   * Applies the OneAtlas canonical resolution policy.
+   * Applies the AI Details canonical resolution policy.
    *
    * STRICT POLICY:
    * Only exact source mappings (Strategy 1), authoritative canonical IDs (Strategy 2),
@@ -56,7 +56,7 @@ export class DecisionEngine {
         candidates: input.candidates,
         evidence: topCandidate.evidence,
         conflicts: topCandidate.conflicts,
-        unresolvedReason: `Heuristic matches found (Top candidate: '${topCandidate.candidateModelSlug}', score: ${topCandidate.confidenceScore}). In accordance with OneAtlas safety policy, heuristic matches require manual review and cannot be automatically merged.`,
+        unresolvedReason: `Heuristic matches found (Top candidate: '${topCandidate.candidateModelSlug}', score: ${topCandidate.confidenceScore}). In accordance with AI Details safety policy, heuristic matches require manual review and cannot be automatically merged.`,
       };
     }
 

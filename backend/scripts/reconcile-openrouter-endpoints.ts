@@ -12,7 +12,7 @@ const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("=== ONEATLAS ENDPOINT & PROVENANCE RECONCILIATION ===");
+  console.log("=== AI DETAILS ENDPOINT & PROVENANCE RECONCILIATION ===");
 
   const openrouterSource = await prisma.externalSource.findUnique({
     where: { slug: "openrouter" },

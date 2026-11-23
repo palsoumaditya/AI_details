@@ -4,7 +4,7 @@ import { PrismaClient } from "@oneatlas/database";
 import { Prisma } from "@oneatlas/database";
 
 /**
- * OneAtlas Database Comprehensive Smoke Test
+ * AI DETAILS Database Comprehensive Smoke Test
  *
  * Verifies all 12 operational and relational criteria:
  * 1. Database connectivity
@@ -25,13 +25,13 @@ import { Prisma } from "@oneatlas/database";
 
 async function runSmokeTest() {
   console.log("🔍 =========================================================");
-  console.log("   ONEATLAS PRODUCTION DATABASE SMOKE TEST SUITE");
+  console.log("   AI DETAILS PRODUCTION DATABASE SMOKE TEST SUITE");
   console.log("=========================================================\n");
 
   const connectionString =
     process.env.DIRECT_URL ||
     process.env.DATABASE_URL ||
-    "postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public";
+    "postgresql://postgres:postgres@localhost:5432/AI DETAILS?schema=public";
 
   const adapter = new PrismaPg({ connectionString });
   const prisma = new PrismaClient({ adapter });
@@ -61,7 +61,7 @@ async function runSmokeTest() {
     console.log(`   ✓ Connected to PostgreSQL engine: ${pgVersion.split(",")[0]}`);
 
     // 4. Table Existence Verification
-    console.log("4. [Tables] Checking existence of core OneAtlas tables in schema 'public'...");
+    console.log("4. [Tables] Checking existence of core AI DETAILS tables in schema 'public'...");
     const tables = await prisma.$queryRaw<Array<{ table_name: string }>>`
       SELECT table_name 
       FROM information_schema.tables 

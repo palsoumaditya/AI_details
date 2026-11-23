@@ -20,7 +20,7 @@ import { ProviderService } from "../src/integrations/modelsdev/provider.service"
 import { EndpointService } from "../src/integrations/modelsdev/endpoint.service";
 
 /**
- * OneAtlas Models.dev Integration Test Suite
+ * AI DETAILS Models.dev Integration Test Suite
  * Covers Zod validation, pricing normalization (no multiplication by 1M),
  * canonical reconciliation, deterministic hashing, true idempotency, and live DB persistence.
  */
@@ -28,7 +28,7 @@ import { EndpointService } from "../src/integrations/modelsdev/endpoint.service"
 async function runTests() {
   console.log(`
 🧪 =========================================================
-   ONEATLAS MODELs.DEV INTEGRATION UNIT & PERSISTENCE TESTS
+   AI DETAILS MODELs.DEV INTEGRATION UNIT & PERSISTENCE TESTS
 =========================================================
 `);
 

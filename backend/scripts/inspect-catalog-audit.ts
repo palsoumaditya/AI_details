@@ -3,7 +3,7 @@ import { prisma } from "../src/database/index";
 
 async function auditDatabase(): Promise<void> {
   console.log("🔍 =========================================================");
-  console.log("   ONEATLAS DATABASE CATALOG & SCHEMA AUDIT (PHASE 4B)");
+  console.log("   AI DETAILS DATABASE CATALOG & SCHEMA AUDIT (PHASE 4B)");
   console.log("=========================================================\n");
 
   // 1. Model counts

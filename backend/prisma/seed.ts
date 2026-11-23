@@ -3,7 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 /**
- * OneAtlas Baseline Database Seeder
+ * AI Details Baseline Database Seeder
  *
  * Idempotent seed script populating:
  * 1. AI Labs (OpenAI, Anthropic, Google, Meta, Mistral AI, DeepSeek)
@@ -17,13 +17,13 @@ import { PrismaClient } from "../src/generated/prisma/client";
 const connectionString =
   process.env.DIRECT_URL ||
   process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public";
+  "postgresql://postgres:postgres@localhost:5432/aidetails?schema=public";
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("🌱 Starting OneAtlas database seeding...");
+  console.log("🌱 Starting AI Details database seeding...");
 
   // 1. AI Research Organizations & Labs
   const labs = [
@@ -106,7 +106,7 @@ async function main() {
     });
   }
 
-  // 2. External Data Sources (Where OneAtlas retrieves data)
+  // 2. External Data Sources (Where AI Details retrieves data)
   const sources = [
     {
       slug: "openrouter",
@@ -323,7 +323,7 @@ async function main() {
     });
   }
 
-  console.log("✅ OneAtlas database seeding completed successfully.");
+  console.log("✅ AI Details database seeding completed successfully.");
 }
 
 main()

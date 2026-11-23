@@ -28,18 +28,18 @@ export async function generateMetadata({
     const result = await providerDirectoryQueryService.getProviderBySlug(slug);
     if (!result) {
       return {
-        title: "Provider Not Found | OneAtlas.dev",
+        title: "Provider Not Found | AI Details",
       };
     }
     return {
-      title: `${result.provider.name} — AI Inference Endpoints & Hosted Models | OneAtlas.dev`,
+      title: `${result.provider.name} — AI Inference Endpoints & Hosted Models | AI Details`,
       description:
         result.provider.description ||
         `Explore supported models, context limits, pricing, and active endpoint availability for ${result.provider.name}.`,
     };
   } catch {
     return {
-      title: `${slug} — Inference Provider | OneAtlas.dev`,
+      title: `${slug} — Inference Provider | AI Details`,
     };
   }
 }

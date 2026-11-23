@@ -115,7 +115,7 @@ export function deriveCanonicalSlug(id: string, canonicalSlug?: string | null): 
 }
 
 /**
- * Normalizes a raw OpenRouter model item into OneAtlas Model specifications.
+ * Normalizes a raw OpenRouter model item into AI Details Model specifications.
  */
 export function normalizeModel(raw: OpenRouterRawModelItem): NormalizedModel {
   const [author] = raw.id.split("/");

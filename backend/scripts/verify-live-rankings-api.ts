@@ -1,7 +1,7 @@
 async function runApiVerification() {
   const baseUrl = "http://localhost:3000";
   console.log("================================================================================");
-  console.log("ONEATLAS TASK 6.1: LIVE API ENDPOINT VERIFICATION (TARGET: " + baseUrl + ")");
+  console.log("AI DETAILS TASK 6.1: LIVE API ENDPOINT VERIFICATION (TARGET: " + baseUrl + ")");
   console.log("================================================================================\n");
 
   const endpoints = [
