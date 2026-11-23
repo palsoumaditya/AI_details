@@ -12,6 +12,7 @@
   "dependencies": {
     "@clerk/nextjs": "^7.10.7",
     "@oneatlas/backend": "*",
+    "ioredis": "^6.0.0",
     "lucide-react": "^0.511.0",
     "next": "16.4.6",
     "react": "19.3.0",
