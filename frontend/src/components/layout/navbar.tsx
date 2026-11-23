@@ -137,8 +137,8 @@ export function Navbar() {
                 </button>
               </SignInButton>
               <SignUpButton mode="modal">
-                <button className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-800 transition-all shadow-2xs cursor-pointer">
-                  <Sparkles className="h-3 w-3 text-amber-300" />
+                <button className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-black transition-all shadow-2xs cursor-pointer">
+                  <Sparkles className="h-3 w-3 text-white" />
                   <span>Get Started</span>
                 </button>
               </SignUpButton>
