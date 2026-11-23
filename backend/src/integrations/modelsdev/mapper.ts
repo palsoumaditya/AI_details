@@ -229,6 +229,8 @@ export function normalizeEndpoint(
     name: raw.name || null,
     contextWindow: raw.limit?.context ?? null,
     maxOutputTokens: raw.limit?.output ?? null,
+    inputModalities: raw.modalities?.input && raw.modalities.input.length > 0 ? raw.modalities.input : ["text"],
+    outputModalities: raw.modalities?.output && raw.modalities.output.length > 0 ? raw.modalities.output : ["text"],
     capabilities: capabilities as unknown as Prisma.InputJsonValue,
     pricing: normalizePricing(raw.cost),
     rawPayload: raw as Record<string, unknown>,

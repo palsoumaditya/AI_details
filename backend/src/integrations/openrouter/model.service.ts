@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma, Model } from "@oneatlas/database";
 import type { NormalizedModel } from "./types";
+import { LabResolver } from "../../domain/identity-resolution/lab-resolver";
 
 export type ModelSyncStatus = "inserted" | "updated" | "unchanged";
 
@@ -7,7 +8,11 @@ export type ModelSyncStatus = "inserted" | "updated" | "unchanged";
  * Service for resolving, deduplicating, and persisting canonical AI models.
  */
 export class ModelService {
-  constructor(private readonly prisma: PrismaClient) {}
+  private readonly labResolver: LabResolver;
+
+  constructor(private readonly prisma: PrismaClient) {
+    this.labResolver = new LabResolver(prisma);
+  }
 
   /**
    * Resolves or creates a canonical Model and associates ModelSourceMapping and ModelLab.
@@ -19,6 +24,10 @@ export class ModelService {
     tx?: Prisma.TransactionClient
   ): Promise<{ model: Model; isNew: boolean; status: ModelSyncStatus }> {
     const db = tx || this.prisma;
+
+    const labSlug =
+      norm.inferredLabSlug ||
+      this.labResolver.resolveLabSlug(norm.externalId, norm.name, norm.architectureType);
 
     // 1. Check existing ModelSourceMapping
     const existingMapping = await db.modelSourceMapping.findUnique({
@@ -33,6 +42,11 @@ export class ModelService {
 
     if (existingMapping) {
       const model = existingMapping.model;
+
+      // Always link AI Lab if known
+      if (labSlug) {
+        await this.labResolver.linkModelToLab(model.id, labSlug, db);
+      }
 
       // If source payloadHash is unchanged, this source has no new data -> UNCHANGED
       if (norm.payloadHash && existingMapping.payloadHash === norm.payloadHash) {
@@ -111,28 +125,8 @@ export class ModelService {
     }
 
     // 3. Link to AI Lab via ModelLab if lab is recognized
-    if (norm.inferredLabSlug) {
-      const lab = await db.aiLab.findUnique({
-        where: { slug: norm.inferredLabSlug },
-      });
-
-      if (lab) {
-        await db.modelLab.upsert({
-          where: {
-            modelId_aiLabId_relationshipType: {
-              modelId: model.id,
-              aiLabId: lab.id,
-              relationshipType: "CREATOR",
-            },
-          },
-          update: {},
-          create: {
-            modelId: model.id,
-            aiLabId: lab.id,
-            relationshipType: "CREATOR",
-          },
-        });
-      }
+    if (labSlug) {
+      await this.labResolver.linkModelToLab(model.id, labSlug, db);
     }
 
     // 4. Create ModelSourceMapping

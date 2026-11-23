@@ -1,9 +1,17 @@
 import { PrismaClient, Model, Prisma } from "@oneatlas/database";
-import type { NormalizedCanonicalModel } from "./types";
+import type { NormalizedCanonicalModel, ModelsDevRawBenchmark } from "./types";
 import type { EntitySyncStatus } from "./provider.service";
+import { LabResolver } from "../../domain/identity-resolution/lab-resolver";
+import { BenchmarkService } from "./benchmark.service";
 
 export class ModelService {
-  constructor(private readonly prisma: PrismaClient) {}
+  private readonly labResolver: LabResolver;
+  private readonly benchmarkService: BenchmarkService;
+
+  constructor(private readonly prisma: PrismaClient) {
+    this.labResolver = new LabResolver(prisma);
+    this.benchmarkService = new BenchmarkService(prisma);
+  }
 
   /**
    * Resolves or creates a canonical Model and links it via ModelSourceMapping.
@@ -15,6 +23,18 @@ export class ModelService {
     tx?: Prisma.TransactionClient
   ): Promise<{ model: Model; status: EntitySyncStatus }> {
     const db = tx || this.prisma;
+
+    const labSlug =
+      normalized.inferredLabSlug ||
+      this.labResolver.resolveLabSlug(
+        normalized.externalId,
+        normalized.name,
+        normalized.family
+      );
+
+    const benchmarks = (normalized.rawPayload as Record<string, unknown>)?.benchmarks as
+      | ModelsDevRawBenchmark[]
+      | undefined;
 
     // 1. Check existing source mapping for Models.dev
     const existingMapping = await db.modelSourceMapping.findUnique({
@@ -29,6 +49,16 @@ export class ModelService {
 
     if (existingMapping) {
       const model = existingMapping.model;
+
+      // Always ensure lab relationship is created if authoritative
+      if (labSlug) {
+        await this.labResolver.linkModelToLab(model.id, labSlug, db);
+      }
+
+      // Always ingest/sync benchmarks if present
+      if (benchmarks && benchmarks.length > 0) {
+        await this.benchmarkService.ingestModelBenchmarks(model.id, sourceId, benchmarks, db);
+      }
 
       // Check if any fields have changed
       const isNameChanged = model.name !== normalized.name;
@@ -116,8 +146,13 @@ export class ModelService {
       });
 
       // Link AI Lab if not already linked
-      if (normalized.inferredLabSlug) {
-        await this.linkAiLab(existingModelBySlug.id, normalized.inferredLabSlug, db);
+      if (labSlug) {
+        await this.labResolver.linkModelToLab(existingModelBySlug.id, labSlug, db);
+      }
+
+      // Ingest benchmarks
+      if (benchmarks && benchmarks.length > 0) {
+        await this.benchmarkService.ingestModelBenchmarks(existingModelBySlug.id, sourceId, benchmarks, db);
       }
 
       return { model: updatedModel, status: "updated" };
@@ -160,41 +195,14 @@ export class ModelService {
       },
     });
 
-    if (normalized.inferredLabSlug) {
-      await this.linkAiLab(newModel.id, normalized.inferredLabSlug, db);
+    if (labSlug) {
+      await this.labResolver.linkModelToLab(newModel.id, labSlug, db);
+    }
+
+    if (benchmarks && benchmarks.length > 0) {
+      await this.benchmarkService.ingestModelBenchmarks(newModel.id, sourceId, benchmarks, db);
     }
 
     return { model: newModel, status: "inserted" };
-  }
-
-  /**
-   * Links a model to an AI Lab with CREATOR role when authoritative.
-   */
-  private async linkAiLab(
-    modelId: string,
-    labSlug: string,
-    db: Prisma.TransactionClient | PrismaClient
-  ): Promise<void> {
-    const lab = await db.aiLab.findUnique({
-      where: { slug: labSlug },
-    });
-
-    if (!lab) return;
-
-    await db.modelLab.upsert({
-      where: {
-        modelId_aiLabId_relationshipType: {
-          modelId,
-          aiLabId: lab.id,
-          relationshipType: "CREATOR",
-        },
-      },
-      update: {},
-      create: {
-        modelId,
-        aiLabId: lab.id,
-        relationshipType: "CREATOR",
-      },
-    });
   }
 }

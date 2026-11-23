@@ -158,6 +158,8 @@ export interface NormalizedEndpoint {
   name: string | null;
   contextWindow: number | null;
   maxOutputTokens: number | null;
+  inputModalities: string[];
+  outputModalities: string[];
   capabilities: Prisma.InputJsonValue | null;
   pricing: NormalizedPricing | null;
   rawPayload: Record<string, unknown>;

@@ -14,4 +14,5 @@ export * from "./conflict.service";
 export * from "./provider-resolver";
 export * from "./endpoint-resolver";
 export * from "./model-resolver";
+export * from "./lab-resolver";
 export * from "./review.service";

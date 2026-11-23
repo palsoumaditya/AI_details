@@ -69,6 +69,27 @@ async function main() {
       description: "Pioneering AI research company specializing in open reasoning and MoE architectures.",
       country: "China",
     },
+    {
+      slug: "xai",
+      name: "xAI",
+      website: "https://x.ai",
+      description: "AI research and deployment company developing Groq and frontier reasoning systems.",
+      country: "United States",
+    },
+    {
+      slug: "qwen",
+      name: "Qwen / Alibaba",
+      website: "https://qwenlm.github.io",
+      description: "Alibaba Cloud's foundational AI research initiative creating multilingual and vision-language open weights.",
+      country: "China",
+    },
+    {
+      slug: "cohere",
+      name: "Cohere",
+      website: "https://cohere.com",
+      description: "Enterprise foundation AI lab specializing in Command models and advanced multilingual embeddings.",
+      country: "Canada",
+    },
   ];
 
   console.log(`Seeding ${labs.length} AI research organizations...`);
@@ -92,6 +113,13 @@ async function main() {
       name: "OpenRouter API",
       baseUrl: "https://openrouter.ai/api/v1",
       website: "https://openrouter.ai",
+      isActive: true,
+    },
+    {
+      slug: "modelsdev",
+      name: "Models.dev Catalog",
+      baseUrl: "https://models.dev",
+      website: "https://models.dev",
       isActive: true,
     },
     {
@@ -147,6 +175,38 @@ async function main() {
       website: "https://docs.anthropic.com",
       providerType: "DIRECT" as const,
       apiDocUrl: "https://docs.anthropic.com/en/api",
+      isActive: true,
+    },
+    {
+      slug: "anthropic",
+      name: "Anthropic",
+      website: "https://docs.anthropic.com",
+      providerType: "DIRECT" as const,
+      apiDocUrl: "https://docs.anthropic.com/en/docs/about-claude/models",
+      isActive: true,
+    },
+    {
+      slug: "openai",
+      name: "OpenAI",
+      website: "https://platform.openai.com",
+      providerType: "DIRECT" as const,
+      apiDocUrl: "https://platform.openai.com/docs/models",
+      isActive: true,
+    },
+    {
+      slug: "deepseek",
+      name: "DeepSeek",
+      website: "https://deepseek.com",
+      providerType: "DIRECT" as const,
+      apiDocUrl: "https://api-docs.deepseek.com",
+      isActive: true,
+    },
+    {
+      slug: "togetherai",
+      name: "Together AI",
+      website: "https://together.ai",
+      providerType: "AGGREGATOR" as const,
+      apiDocUrl: "https://docs.together.ai",
       isActive: true,
     },
     {

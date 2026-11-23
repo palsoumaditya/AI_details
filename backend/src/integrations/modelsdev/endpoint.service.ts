@@ -1,8 +1,20 @@
 import { PrismaClient, ModelProviderEndpoint, Prisma } from "@oneatlas/database";
 import type { NormalizedEndpoint } from "./types";
 import { deriveCanonicalSlug } from "./mapper";
+import { VERIFIED_MODEL_ALIASES } from "../../domain/identity-resolution/alias-resolver";
 
 export type EndpointSyncStatus = "inserted" | "updated" | "unchanged" | "unresolved";
+
+const PROVIDER_SLUG_ALIASES: Record<string, string> = {
+  anthropic: "anthropic-api",
+  "anthropic-api": "anthropic",
+  openai: "openai-api",
+  "openai-api": "openai",
+  togetherai: "together-ai",
+  "together-ai": "togetherai",
+  google: "google-vertex",
+  "google-vertex": "google",
+};
 
 export class EndpointService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -21,7 +33,7 @@ export class EndpointService {
     // 1. Resolve canonical Model
     let canonicalModelId: string | null = null;
 
-    // Try explicit canonical_model_id first
+    // Strategy A: Explicit canonical_model_id from provider offering
     if (normalized.canonicalModelId) {
       const mapping = await db.modelSourceMapping.findUnique({
         where: {
@@ -43,7 +55,7 @@ export class EndpointService {
       }
     }
 
-    // Fallback to modelExternalId if no canonical_model_id or not found yet
+    // Strategy B: Direct modelExternalId match in mappings or by slug
     if (!canonicalModelId) {
       const mapping = await db.modelSourceMapping.findUnique({
         where: {
@@ -65,7 +77,44 @@ export class EndpointService {
       }
     }
 
-    // If still unresolved, do NOT attach to a guessed model
+    // Strategy C: Provider-prefixed model ID (e.g. "anthropic/claude-3-5-sonnet-20241022" or "openai/gpt-4o")
+    if (!canonicalModelId) {
+      const prefixedId = `${normalized.providerExternalId}/${normalized.modelExternalId}`;
+      const mapping = await db.modelSourceMapping.findUnique({
+        where: {
+          sourceId_externalModelId: {
+            sourceId,
+            externalModelId: prefixedId,
+          },
+        },
+      });
+
+      if (mapping) {
+        canonicalModelId = mapping.modelId;
+      } else {
+        const slug = deriveCanonicalSlug(prefixedId);
+        const model = await db.model.findUnique({ where: { slug } });
+        if (model) {
+          canonicalModelId = model.id;
+        }
+      }
+    }
+
+    // Strategy D: Verified alias mapping
+    if (!canonicalModelId) {
+      const aliasTarget =
+        VERIFIED_MODEL_ALIASES[normalized.modelExternalId] ||
+        VERIFIED_MODEL_ALIASES[`${normalized.providerExternalId}/${normalized.modelExternalId}`];
+
+      if (aliasTarget) {
+        const model = await db.model.findUnique({ where: { slug: aliasTarget } });
+        if (model) {
+          canonicalModelId = model.id;
+        }
+      }
+    }
+
+    // If still unresolved, preserve integrity (never guess or fabricate)
     if (!canonicalModelId) {
       return { status: "unresolved" };
     }
@@ -85,7 +134,12 @@ export class EndpointService {
       providerId = providerMapping.providerId;
     } else {
       const providerSlug = normalized.providerExternalId.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
-      const provider = await db.provider.findUnique({ where: { slug: providerSlug } });
+      let provider = await db.provider.findUnique({ where: { slug: providerSlug } });
+
+      if (!provider && PROVIDER_SLUG_ALIASES[providerSlug]) {
+        provider = await db.provider.findUnique({ where: { slug: PROVIDER_SLUG_ALIASES[providerSlug] } });
+      }
+
       if (provider) {
         providerId = provider.id;
       }
@@ -110,6 +164,13 @@ export class EndpointService {
         },
       },
     });
+
+    const inModalities = normalized.inputModalities && normalized.inputModalities.length > 0
+      ? normalized.inputModalities
+      : ["text"];
+    const outModalities = normalized.outputModalities && normalized.outputModalities.length > 0
+      ? normalized.outputModalities
+      : ["text"];
 
     if (existingEndpoint) {
       const isContextChanged =
@@ -136,6 +197,8 @@ export class EndpointService {
           name: normalized.name || existingEndpoint.name,
           contextWindow: normalized.contextWindow ?? existingEndpoint.contextWindow,
           maxOutputTokens: normalized.maxOutputTokens ?? existingEndpoint.maxOutputTokens,
+          inputModalities: inModalities,
+          outputModalities: outModalities,
           capabilities: normalized.capabilities
             ? (normalized.capabilities as Prisma.InputJsonValue)
             : (existingEndpoint.capabilities as Prisma.InputJsonValue) ?? Prisma.DbNull,
@@ -176,6 +239,8 @@ export class EndpointService {
         name: normalized.name,
         contextWindow: normalized.contextWindow,
         maxOutputTokens: normalized.maxOutputTokens,
+        inputModalities: inModalities,
+        outputModalities: outModalities,
         capabilities: normalized.capabilities
           ? (normalized.capabilities as Prisma.InputJsonValue)
           : Prisma.DbNull,
