@@ -7,8 +7,13 @@ import { PrismaClient } from "../generated/prisma/client";
 // Ensure environment variables are loaded across standalone runners & Next.js
 dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
+dotenv.config({ path: path.resolve(process.cwd(), "../.env.local") });
 dotenv.config({ path: path.resolve(process.cwd(), "AI_details/.env") });
+dotenv.config({ path: path.resolve(process.cwd(), "AI_details/.env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), "frontend/.env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), "AI_details/frontend/.env.local") });
 
 /**
  * OneAtlas Production-Grade Database Connection Manager
@@ -54,6 +59,14 @@ export function resolveConnectionUrl(useDirectUrl = false): string {
       // Ensure direct connection does not inadvertently use pooler host
       return direct.replace("-pooler.", ".");
     }
+  }
+
+  if (!process.env.DATABASE_URL && !process.env.DIRECT_URL) {
+    console.warn(
+      "[Database Warning] Neither DATABASE_URL nor DIRECT_URL was found in process.env. " +
+      "Falling back to default local connection 'postgresql://postgres:postgres@localhost:5432/oneatlas?schema=public'. " +
+      "If you are using Neon or a remote database, verify your .env or .env.local file and restart the dev server."
+    );
   }
 
   // Application runtime: MUST use DATABASE_URL first (pooled connection where configured)
